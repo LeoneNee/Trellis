@@ -43,6 +43,7 @@ import {
   type RegistrySource,
 } from "../utils/template-fetcher.js";
 import { setupProxy, maskProxyUrl } from "../utils/proxy.js";
+import { configureEnhancements } from "../configurators/enhancements.js";
 
 /**
  * Detect available Python command (python3 or python) and verify version >= 3.10
@@ -547,6 +548,10 @@ interface InitOptions {
   codebuddy?: boolean;
   copilot?: boolean;
   droid?: boolean;
+  gitnexus?: boolean;
+  superpowers?: boolean;
+  gstack?: boolean;
+  all?: boolean;
   yes?: boolean;
   user?: string;
   force?: boolean;
@@ -1306,6 +1311,19 @@ export async function init(options: InitOptions): Promise<void> {
       console.log(chalk.blue(`📝 Configuring ${AI_TOOLS[platformId].name}...`));
       await configurePlatform(platformId, cwd);
     }
+  }
+
+  // ==========================================================================
+  // Enhancement Integration (GitNexus, Superpowers, gstack)
+  // ==========================================================================
+  const enhancements = {
+    gitnexus: !!(options.gitnexus ?? options.all),
+    superpowers: !!(options.superpowers ?? options.all),
+    gstack: !!(options.gstack ?? options.all),
+  };
+  if (Object.values(enhancements).some(Boolean)) {
+    console.log(chalk.blue("🔧 Configuring enhancements..."));
+    await configureEnhancements(cwd, enhancements);
   }
 
   // Show Windows platform detection notice
