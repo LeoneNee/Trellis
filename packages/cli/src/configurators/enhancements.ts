@@ -8,8 +8,12 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { writeFile, ensureDir } from "../utils/file-writer.js";
 import { DIR_NAMES } from "../constants/paths.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export interface Enhancements {
   gitnexus: boolean;
