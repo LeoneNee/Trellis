@@ -74,6 +74,10 @@ program
   .option("--codebuddy", "Include CodeBuddy commands")
   .option("--copilot", "Include GitHub Copilot hooks")
   .option("--droid", "Include Factory Droid commands")
+  .option("--gitnexus", "Enable GitNexus knowledge graph integration")
+  .option("--superpowers", "Enable Superpowers skill command aliases")
+  .option("--gstack", "Enable gstack skill command aliases")
+  .option("--all", "Enable all integrations (GitNexus + Superpowers + gstack)")
   .option("-y, --yes", "Skip prompts and use defaults")
   .option(
     "-u, --user <name>",
