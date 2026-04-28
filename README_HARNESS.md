@@ -376,15 +376,19 @@
 ### 6.1 环境准备（首次）
 
 ```bash
-# 1. 安装 Trellis CLI
-npm install -g @mindfoldhq/trellis@latest
+# 1. 从本地仓库构建并 link（包含自定义改动）
+cd /Users/nizhihao/AI/coding/Trellis
+pnpm build && npm link
 
-# 2. 在项目中初始化（生成 .trellis/ 结构 + 平台配置）
+# 2. 在目标项目中初始化（生成 .trellis/ 结构 + 平台配置）
+cd your-project
 trellis init --claude --all -u yourname
 
-# 3. 启动 Claude Code，进入项目目录
-cd your-project && claude
+# 3. 启动 Claude Code
+claude
 ```
+
+> **注意**: `npm install -g @mindfoldhq/trellis@latest` 安装的是原版 v0.4.0，不包含本仓库的自定义改动（task_sync、import-plan/sync-status 等）。必须用 `npm link` 从本地安装。
 
 ### 6.2 日常工作流（7 阶段）
 
