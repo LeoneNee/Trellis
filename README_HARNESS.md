@@ -371,7 +371,148 @@
 
 ---
 
-## 六、修复记录
+## 六、使用方式
+
+### 6.1 环境准备（首次）
+
+```bash
+# 1. 安装 Trellis CLI
+npm install -g @mindfoldhq/trellis@latest
+
+# 2. 在项目中初始化（生成 .trellis/ 结构 + 平台配置）
+trellis init --claude --all -u yourname
+
+# 3. 启动 Claude Code，进入项目目录
+cd your-project && claude
+```
+
+### 6.2 日常工作流（7 阶段）
+
+直接用自然语言描述需求，Harness 会自动路由到对应 Skill。也可以显式调用：
+
+| 你想做什么 | 在 Claude Code 中输入 | 触发的 Skill |
+|-----------|----------------------|-------------|
+| 探索产品想法 | `"帮我 brainstorm 这个功能"` 或 `/office-hours` | `office-hours` |
+| 写实施计划 | `"为这个功能写个实施方案"` | `superpowers:writing-plans` |
+| 评审计划 | `"评审这个计划"` 或 `/plan-eng-review` | `plan-eng-review` |
+| 多模型评审 | `/consensus-debate` | `consensus-debate` |
+| 开始开发 | `"按计划执行"` | `superpowers:executing-plans` |
+| 并行开发多个任务 | `"并行开发这三个功能"` | `superpowers:dispatching-parallel-agents` |
+| 调试 Bug | `"这个报错了，帮我查"` 或 `/investigate` | `investigate` |
+| 代码审查 | `"review 我的改动"` 或 `/review` | `review` |
+| QA 测试 | `/qa` | `qa` |
+| 浏览器测试 | `/browse https://localhost:3000` | `browse` |
+| 发布/创建 PR | `/ship` | `ship` |
+| 代码质量检查 | `/health` | `health` |
+| 周度回顾 | `/retro` | `retro` |
+
+### 6.3 GitNexus 代码智能
+
+改代码前必须查影响范围，改完后确认影响：
+
+```
+# 改代码前 — 查爆炸半径
+> gitnexus impact on "functionName"
+
+# 改代码后 — 确认影响范围
+> gitnexus detect changes
+
+# 搜索执行流
+> gitnexus query "用户认证流程"
+
+# 查看符号完整上下文
+> gitnexus context for "validateUser"
+
+# API 兼容检查
+> gitnexus shape check /api/users
+```
+
+### 6.4 验证循环（铁律）
+
+**改代码 → 跑测试 → 读输出 → 修复 → 再跑 → 通过才交付**
+
+```bash
+pnpm test && pnpm build    # 后端验证
+pnpm dev                   # 前端联调
+```
+
+前后端功能必须通过前端走完整测试流程：
+- 后端接口地址 vs 前端接口地址是否一致
+- 参数名/参数类型是否匹配
+
+### 6.5 自动触发的 Hooks（无需手动）
+
+| 时机 | 自动行为 |
+|------|---------|
+| 输入 Prompt 时 | lesson-search 自动匹配历史经验注入上下文 |
+| 搜索代码时 | GitNexus 自动注入图谱上下文增强搜索 |
+| 编辑文件时 | auto-approve 自动授权 + harness 知识库提醒 |
+| git commit 时 | consensus-debate 自动触发多模型 review |
+| 会话结束时 | 检测到计划意图时提示进行评审 |
+| subagent 结束时 | lesson-capture 自动沉淀经验 |
+
+### 6.6 Context 管理
+
+```
+/context   # 查看 token 使用量
+/compact   # 接近上下文上限时压缩
+/clear     # 开始新任务时清空
+```
+
+大任务用 Plan Mode（Shift+Tab）拆阶段，每阶段用 `/trellis:record-session` 保存 checkpoint。
+
+### 6.7 典型场景示例
+
+**场景 A：新功能开发（完整流程）**
+```
+1. 用户: "我想加一个用户认证功能"
+   → /office-hours → YC 式追问澄清需求
+
+2. 用户: "需求明确了，写实施方案"
+   → /superpowers:writing-plans → 拆解计划 + GitNexus impact
+
+3. 用户: "评审这个计划"
+   → /plan-eng-review → 工程经理视角评分
+   → /consensus-debate → 多模型博弈评审（可选）
+
+4. 用户: "按计划执行"
+   → /superpowers:executing-plans → TDD 执行
+
+5. 用户: "review 一下"
+   → /review → 代码审查 + API 兼容检查
+
+6. 用户: "QA 测试"
+   → /qa → 系统化测试 + 修复
+
+7. 用户: "发布"
+   → /ship → 测试→审查→CHANGELOG→PR
+```
+
+**场景 B：紧急 Bug 修复**
+```
+1. 用户: "线上报错了，/Users/nizhihao/project/error.log"
+   → /investigate → 根因调试 + GitNexus 定位
+
+2. 修复后:
+   → gitnexus_detect_changes → 确认影响范围
+
+3. 用户: "review 并发布"
+   → /review → /ship
+```
+
+**场景 C：并行开发**
+```
+1. 用户: "这三个功能并行开发"
+   → /superpowers:dispatching-parallel-agents
+   → 每个功能独立 worktree + subagent
+   → 各自 TDD 循环
+   → 完成后各自 gitnexus_detect_changes
+   → 经验自动沉淀到 .harness/lessons/
+```
+
+---
+
+## 七、修复记录
 
 | # | 问题 | 修复 | 影响文件 |
 |---|------|------|---------|
