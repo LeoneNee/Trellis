@@ -1,0 +1,26 @@
+[
+  {
+    "name": "judge",
+    "endpoint": "{{CONSENSUS_DEBATE_ENDPOINT}}",
+    "api_key": "{{CONSENSUS_DEBATE_API_KEY}}",
+    "model": "{{CONSENSUS_DEBATE_JUDGE_MODEL}}",
+    "role": "judge",
+    "protocol": "openai"
+  },
+  {
+    "name": "participant-1",
+    "endpoint": "{{CONSENSUS_DEBATE_ENDPOINT}}",
+    "api_key": "{{CONSENSUS_DEBATE_API_KEY}}",
+    "model": "{{CONSENSUS_DEBATE_PARTICIPANT_MODEL}}",
+    "role": "participant",
+    "protocol": "openai"
+  },
+  {
+    "name": "participant-2",
+    "endpoint": "{{CONSENSUS_DEBATE_ENDPOINT}}",
+    "api_key": "{{CONSENSUS_DEBATE_API_KEY}}",
+    "model": "{{CONSENSUS_DEBATE_PARTICIPANT_MODEL_2}}",
+    "role": "participant",
+    "protocol": "openai"
+  }
+]

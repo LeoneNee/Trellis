@@ -38,6 +38,33 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Grep|Glob|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gitnexus-hook.cjs",
+            "timeout": 10,
+            "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/auto-approve-hook.cjs",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/harness-hook.cjs",
+            "timeout": 5,
+            "statusMessage": "Checking harness knowledge base..."
+          }
+        ]
+      },
+      {
         "matcher": "Task",
         "hooks": [
           {
@@ -54,6 +81,75 @@
             "type": "command",
             "command": "{{PYTHON_CMD}} .claude/hooks/inject-subagent-context.py",
             "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $CLAUDE_PROJECT_DIR && git diff --cached -- '*.py' '*.ts' '*.tsx' '*.js' '*.jsx' '*.go' '*.java' '*.rs' 2>/dev/null | {{PYTHON_CMD}} .claude/skills/consensus-debate/scripts/review_wrapper.py --message \"$(git log -1 --format=%s 2>/dev/null | head -c 100 || echo '')\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gitnexus-hook.cjs",
+            "timeout": 10,
+            "statusMessage": "Checking GitNexus index freshness..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*docs/superpowers/plans/*.md)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION_ID=${CLAUDE_SESSION_ID:-default} && rm -f /tmp/claude_plan_review_done_$SESSION_ID && if [ ! -f /tmp/claude_plan_intent_$SESSION_ID ]; then touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/auto-approve-hook.cjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PYTHON_CMD}} .claude/hooks/lesson-search.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_USER_INPUT\" | grep -qiE '(制定|做|完成|写|生成).*(计划|方案|规划)|plan.*(finish|complete|done)|(finish|complete).*plan'; then SESSION_ID=${CLAUDE_SESSION_ID:-default} && touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION_ID=${CLAUDE_SESSION_ID:-default} && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /consensus-debate for multi-model review.'; fi"
           }
         ]
       }
@@ -76,18 +172,6 @@
             "type": "command",
             "command": "{{PYTHON_CMD}} .claude/hooks/lesson-capture.py",
             "timeout": 10
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{PYTHON_CMD}} .claude/hooks/lesson-search.py",
-            "timeout": 5
           }
         ]
       }

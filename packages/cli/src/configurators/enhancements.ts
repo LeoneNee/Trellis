@@ -210,6 +210,7 @@ export async function configureEnhancements(
 
   if (enhancements.gitnexus) {
     await configureGitnexus(cwd);
+    await configureConsensusDebate(cwd);
   }
   if (enhancements.superpowers) {
     await configureSuperpowers(cwd);
@@ -255,6 +256,105 @@ async function configureGitnexus(cwd: string): Promise<void> {
   }
 
   console.log("  ✓ GitNexus integration configured");
+}
+
+/**
+ * Configure consensus-debate skill:
+ * - Copy scripts (run_debate.py, review_wrapper.py) to .claude/skills/consensus-debate/scripts/
+ * - Generate models.json template with environment variable placeholders
+ */
+async function configureConsensusDebate(cwd: string): Promise<void> {
+  const scriptsDir = path.join(
+    cwd,
+    ".claude",
+    "skills",
+    "consensus-debate",
+    "scripts",
+  );
+  ensureDir(scriptsDir);
+
+  const scriptsSource = getEnhancementsDir("consensus-debate", "scripts");
+  if (fs.existsSync(scriptsSource)) {
+    for (const file of fs.readdirSync(scriptsSource)) {
+      // Skip models.json — we generate it from environment variables
+      if (file === "models.json") continue;
+      const src = path.join(scriptsSource, file);
+      const dest = path.join(scriptsDir, file);
+      const content = fs.readFileSync(src, "utf-8");
+      await writeFile(dest, content, { executable: file.endsWith(".py") });
+    }
+  }
+
+  // Generate models.json with environment variable placeholders
+  // Users must set CONSENSUS_DEBATE_API_KEY and CONSENSUS_DEBATE_ENDPOINT
+  // in their ~/.claude/settings.json env section or shell environment
+  const modelsJson = generateModelsJsonTemplate();
+  await writeFile(path.join(scriptsDir, "models.json"), modelsJson);
+
+  // Copy SKILL.md if it exists
+  const skillSource = getEnhancementsDir("consensus-debate", "skills");
+  if (fs.existsSync(skillSource)) {
+    const skillDest = path.join(cwd, ".claude", "skills", "consensus-debate");
+    ensureDir(skillDest);
+    for (const file of fs.readdirSync(skillSource)) {
+      const src = path.join(skillSource, file);
+      const dest = path.join(skillDest, file);
+      const content = fs.readFileSync(src, "utf-8");
+      await writeFile(dest, content);
+    }
+  }
+
+  console.log("  ✓ consensus-debate skill configured");
+  console.log(
+    "    ⚠ Set CONSENSUS_DEBATE_API_KEY and CONSENSUS_DEBATE_ENDPOINT in environment to enable multi-model review",
+  );
+}
+
+/**
+ * Generate models.json template with env var placeholders.
+ * Values are read from environment at runtime by run_debate.py.
+ */
+function generateModelsJsonTemplate(): string {
+  // Check if env vars are set — if so, use them; otherwise use placeholders
+  const apiKey = process.env.CONSENSUS_DEBATE_API_KEY ?? "";
+  const endpoint = process.env.CONSENSUS_DEBATE_ENDPOINT ?? "";
+  const judgeModel =
+    process.env.CONSENSUS_DEBATE_JUDGE_MODEL ?? "your-judge-model";
+  const participantModel =
+    process.env.CONSENSUS_DEBATE_PARTICIPANT_MODEL ?? "your-participant-model";
+  const participantModel2 =
+    process.env.CONSENSUS_DEBATE_PARTICIPANT_MODEL_2 ?? participantModel;
+
+  return JSON.stringify(
+    [
+      {
+        name: "judge",
+        endpoint,
+        api_key: apiKey,
+        model: judgeModel,
+        role: "judge",
+        protocol: "openai",
+      },
+      {
+        name: "participant-1",
+        endpoint,
+        api_key: apiKey,
+        model: participantModel,
+        role: "participant",
+        protocol: "openai",
+      },
+      {
+        name: "participant-2",
+        endpoint,
+        api_key: apiKey,
+        model: participantModel2,
+        role: "participant",
+        protocol: "openai",
+      },
+    ],
+    null,
+    2,
+  );
 }
 
 /**
