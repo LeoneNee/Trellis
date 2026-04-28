@@ -377,7 +377,7 @@
 
 ```bash
 # 1. 从本地仓库构建并 link（包含自定义改动）
-cd /Users/nizhihao/AI/coding/Trellis
+cd /path/to/Trellis
 pnpm build && npm link
 
 # 2. 在目标项目中初始化（生成 .trellis/ 结构 + 平台配置）
@@ -494,7 +494,7 @@ pnpm dev                   # 前端联调
 
 **场景 B：紧急 Bug 修复**
 ```
-1. 用户: "线上报错了，/Users/nizhihao/project/error.log"
+1. 用户: "线上报错了，/path/to/project/error.log"
    → /investigate → 根因调试 + GitNexus 定位
 
 2. 修复后:
