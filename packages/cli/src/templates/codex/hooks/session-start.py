@@ -107,6 +107,12 @@ def _get_task_status(trellis_dir: Path) -> str:
     if task_status == "completed":
         return f"Status: COMPLETED\nTask: {task_title}\nNext: Archive with `python3 ./.trellis/scripts/task.py archive {task_dir.name}` or start a new task"
 
+    # Plan-aware: if task has linked plan file, skip prd.md/jsonl checks
+    plan_file = task_data.get("meta", {}).get("plan_file")
+    if plan_file:
+        plan_index = task_data.get("meta", {}).get("plan_task_index", "?")
+        return f"Status: READY\nTask: {task_title}\nPlan: {plan_file} (Task {plan_index})\nNext: Continue with implement or check"
+
     has_context = False
     for jsonl_name in ("implement.jsonl", "check.jsonl", "spec.jsonl"):
         jsonl_path = task_dir / jsonl_name

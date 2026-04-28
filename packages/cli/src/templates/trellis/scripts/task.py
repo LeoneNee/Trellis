@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from common.log import Colors, colored
@@ -40,6 +41,7 @@ from common.paths import (
     set_current_task,
     clear_current_task,
 )
+from common.io import read_json, write_json
 from common.task_utils import resolve_task_dir, run_task_hooks
 from common.tasks import iter_active_tasks, children_progress
 
@@ -59,6 +61,7 @@ from common.task_context import (
     cmd_validate,
     cmd_list_context,
 )
+from common.task_sync import cmd_import_plan, cmd_sync_status
 
 
 # =============================================================================
@@ -91,9 +94,14 @@ def cmd_start(args: argparse.Namespace) -> int:
     if set_current_task(task_dir, repo_root):
         print(colored(f"✓ Current task set to: {task_dir}", Colors.GREEN))
         print()
-        print(colored("The hook will now inject context from this task's jsonl files.", Colors.BLUE))
-
+        # Auto-transition planning -> in_progress
         task_json_path = full_path / FILE_TASK_JSON
+        if task_json_path.is_file():
+            data = read_json(task_json_path)
+            if data and data.get("status") == "planning":
+                data["status"] = "in_progress"
+                write_json(task_json_path, data)
+        print(colored("The hook will now inject context from this task's jsonl files.", Colors.BLUE))
         run_task_hooks("after_start", task_json_path, repo_root)
         return 0
     else:
@@ -112,6 +120,14 @@ def cmd_finish(args: argparse.Namespace) -> int:
 
     # Resolve task.json path before clearing
     task_json_path = repo_root / current / FILE_TASK_JSON
+
+    # Auto-transition to completed
+    if task_json_path.is_file():
+        data = read_json(task_json_path)
+        if data and data.get("status") not in ("completed", "done"):
+            data["status"] = "completed"
+            data["completedAt"] = datetime.now().strftime("%Y-%m-%d")
+            write_json(task_json_path, data)
 
     clear_current_task(repo_root)
     print(colored(f"✓ Cleared current task (was: {current})", Colors.GREEN))
@@ -283,6 +299,8 @@ Usage:
   python3 task.py remove-subtask <parent> <child>    Unlink child from parent
   python3 task.py list [--mine] [--status <status>]  List tasks
   python3 task.py list-archive [YYYY-MM]             List archived tasks
+  python3 task.py import-plan <plan-file>              Import plan tasks to trellis
+  python3 task.py sync-status <plan-file>              Sync trellis statuses to plan
 
 Arguments:
   dev_type: backend | frontend | fullstack | test | docs
@@ -409,6 +427,14 @@ def main() -> int:
     p_listarch = subparsers.add_parser("list-archive", help="List archived tasks")
     p_listarch.add_argument("month", nargs="?", help="Month (YYYY-MM)")
 
+    # import-plan
+    p_import = subparsers.add_parser("import-plan", help="Import plan tasks into trellis")
+    p_import.add_argument("plan_file", help="Path to plan markdown file")
+
+    # sync-status
+    p_sync = subparsers.add_parser("sync-status", help="Sync trellis statuses back to plan")
+    p_sync.add_argument("plan_file", help="Path to plan markdown file")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -432,6 +458,8 @@ def main() -> int:
         "remove-subtask": cmd_remove_subtask,
         "list": cmd_list,
         "list-archive": cmd_list_archive,
+        "import-plan": cmd_import_plan,
+        "sync-status": cmd_sync_status,
     }
 
     if args.command in commands:
