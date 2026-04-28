@@ -1,6 +1,6 @@
 # Trellis 开发 Harness 审核报告 & 流程图
 
-> 审核日期：2026-04-27 | 配置版本：superpowers 5.0.7 / gstack skills / GitNexus hooks
+> 审核日期：2026-04-28 | 配置版本：superpowers 5.0.7 / gstack v1.15.0 (39 skills) / GitNexus hooks
 > 修复日期：2026-04-27 | 全部问题已修复
 
 ---
@@ -13,11 +13,11 @@
 | Hooks 系统 | ✅ 就绪 | 7 类钩子覆盖全生命周期 |
 | GitNexus 集成 | ✅ 就绪 | Pre/Post 工具钩子 + MCP 工具 |
 | Superpowers 插件 | ✅ 就绪 | 14 个 skill 已缓存 |
-| gstack 技能 | ✅ 就绪 | 14 个 skill 已安装 |
+| gstack 技能 | ✅ 就绪 | 39 个 skill 已安装 (v1.15.0) |
 | Harness 知识库 | ✅ 已注册 | PreToolUse(Edit\|Write\|Patch) 触发提醒 |
 | Lesson Capture | ✅ 就绪 | prompt 匹配 + subagent 停止时捕获 |
 | Auto-Approve | ✅ 就绪 | `.claude-approve` 标记项目自动授权 |
-| 共识博弈 | ✅ 就绪 | git commit 时自动触发 + Stop 钩子正确指向 |
+| 共识博弈 | ✅ 就绪 | three-cobblers 插件，git commit 时自动触发 + Stop 钩子正确指向 |
 | 计划自动审查 | ✅ 已修复 | Stop 钩子 → `/consensus-debate`（实际存在） |
 
 ---
@@ -285,21 +285,52 @@
 
 ## 五、Skill 来源映射表
 
-### gstack Skills（本地安装）
+### gstack Skills（本地安装，v1.15.0，39 个）
 
 | Skill 名称 | 文件路径 | 阶段 |
 |------------|---------|------|
-| `office-hours` | `~/.claude/skills/office-hours/` | 阶段1 产品探索 |
-| `investigate` | `~/.claude/skills/investigate/` | 全程 调试 |
-| `review` | `~/.claude/skills/review/` | 阶段5 代码审查 |
-| `qa` | `~/.claude/skills/qa/` | 阶段6 QA |
-| `browse` | `~/.claude/skills/browse/` | 阶段6 QA |
-| `ship` | `~/.claude/skills/ship/` | 阶段7 发布 |
-| `health` | `~/.claude/skills/health/` | 代码质量 |
-| `retro` | `~/.claude/skills/retro/` | 周度回顾 |
-| `plan-ceo-review` | `~/.claude/skills/plan-ceo-review/` | 阶段1+ 评审 |
-| `plan-design-review` | `~/.claude/skills/plan-design-review/` | 阶段1+ 评审 |
-| `plan-eng-review` | `~/.claude/skills/plan-eng-review/` | 阶段3 计划评审 |
+| `office-hours` | `~/.claude/skills/gstack/office-hours/` | 阶段1 产品探索 |
+| `investigate` | `~/.claude/skills/gstack/investigate/` | 全程 调试 |
+| `review` | `~/.claude/skills/gstack/review/` | 阶段5 代码审查 |
+| `qa` | `~/.claude/skills/gstack/qa/` | 阶段6 QA |
+| `qa-only` | `~/.claude/skills/gstack/qa-only/` | 阶段6 只报告 |
+| `browse` | `~/.claude/skills/gstack/browse/` | 阶段6 QA |
+| `ship` | `~/.claude/skills/gstack/ship/` | 阶段7 发布 |
+| `health` | `~/.claude/skills/gstack/health/` | 代码质量 |
+| `retro` | `~/.claude/skills/gstack/retro/` | 周度回顾 |
+| `plan-ceo-review` | `~/.claude/skills/gstack/plan-ceo-review/` | 阶段1+ CEO评审 |
+| `plan-design-review` | `~/.claude/skills/gstack/plan-design-review/` | 阶段1+ 设计评审 |
+| `plan-eng-review` | `~/.claude/skills/gstack/plan-eng-review/` | 阶段3 计划评审 |
+| `plan-devex-review` | `~/.claude/skills/gstack/plan-devex-review/` | 阶段3 DX评审 |
+| `plan-tune` | `~/.claude/skills/gstack/plan-tune/` | 计划调优 |
+| `autoplan` | `~/.claude/skills/gstack/autoplan/` | 自动评审流水线 |
+| `benchmark` | `~/.claude/skills/gstack/benchmark/` | 性能基准 |
+| `benchmark-models` | `~/.claude/skills/gstack/benchmark-models/` | 模型对比 |
+| `canary` | `~/.claude/skills/gstack/canary/` | 发布监控 |
+| `careful` | `~/.claude/skills/gstack/careful/` | 危险操作警告 |
+| `codex` | `~/.claude/skills/gstack/codex/` | Codex CLI 封装 |
+| `connect-chrome` | `~/.claude/skills/gstack/connect-chrome/` | Chrome 连接 |
+| `context-save` | `~/.claude/skills/gstack/context-save/` | 上下文保存 |
+| `context-restore` | `~/.claude/skills/gstack/context-restore/` | 上下文恢复 |
+| `cso` | `~/.claude/skills/gstack/cso/` | 安全审计 |
+| `design-consultation` | `~/.claude/skills/gstack/design-consultation/` | 设计咨询 |
+| `design-html` | `~/.claude/skills/gstack/design-html/` | HTML 设计 |
+| `design-review` | `~/.claude/skills/gstack/design-review/` | 设计 QA |
+| `design-shotgun` | `~/.claude/skills/gstack/design-shotgun/` | 设计变体 |
+| `devex-review` | `~/.claude/skills/gstack/devex-review/` | DX 审计 |
+| `document-release` | `~/.claude/skills/gstack/document-release/` | 文档更新 |
+| `freeze` | `~/.claude/skills/gstack/freeze/` | 编辑范围锁定 |
+| `unfreeze` | `~/.claude/skills/gstack/unfreeze/` | 解除锁定 |
+| `guard` | `~/.claude/skills/gstack/guard/` | 安全守卫 |
+| `land-and-deploy` | `~/.claude/skills/gstack/land-and-deploy/` | 合并+部署 |
+| `landing-report` | `~/.claude/skills/gstack/landing-report/` | 发布队列 |
+| `learn` | `~/.claude/skills/gstack/learn/` | 经验管理 |
+| `make-pdf` | `~/.claude/skills/gstack/make-pdf/` | PDF 生成 |
+| `pair-agent` | `~/.claude/skills/gstack/pair-agent/` | 远程 Agent 配对 |
+| `setup-deploy` | `~/.claude/skills/gstack/setup-deploy/` | 部署配置 |
+| `setup-browser-cookies` | `~/.claude/skills/gstack/setup-browser-cookies/` | Cookie 导入 |
+| `setup-gbrain` | `~/.claude/skills/gstack/setup-gbrain/` | gbrain 配置 |
+| `gstack-upgrade` | `~/.claude/skills/gstack/gstack-upgrade/` | gstack 升级 |
 
 ### Superpowers Skills（插件缓存 v5.0.7）
 
@@ -322,17 +353,21 @@
 
 | Skill 名称 | 路径 | 用途 |
 |------------|-----|------|
-| `consensus-debate` | `~/.claude/skills/consensus-debate/` | 多模型博弈评审 |
+| `consensus-debate` | `three-cobblers 插件` | 多模型博弈评审 |
 
-### 插件 Skills（其他）
+### 插件 Skills（完整列表，9 个插件）
 
-| 插件 | Skills | 用途 |
-|------|--------|------|
-| `ui-ux-pro-max` | ui-ux-pro-max, design, banner-design, ui-styling, brand, slides, design-system | UI/UX 设计 |
-| `document-skills` | pdf, xlsx, docx, pptx, claude-api, mcp-builder, skill-creator... | 文档/API |
-| `feature-dev` | feature-dev | 功能开发 |
-| `code-simplifier` | code-simplifier | 代码精简 |
-| `context7` | 文档查询 | 库文档实时查询 |
+| 插件 | 版本 | Skills | 用途 |
+|------|------|--------|------|
+| `superpowers` | v5.0.7 | writing-plans, executing-plans, dispatching-parallel-agents, test-driven-development, systematic-debugging, verification-before-completion, requesting-code-review, receiving-code-review, finishing-a-development-branch, using-git-worktrees, brainstorming, writing-skills | 工作流编排 |
+| `ui-ux-pro-max` | v2.5.0 | ui-ux-pro-max, design, banner-design, ui-styling, brand, slides, design-system | UI/UX 设计 |
+| `document-skills` | - | pdf, xlsx, docx, pptx, claude-api, mcp-builder, skill-creator, frontend-design, web-artifacts-builder, webapp-testing, canvas-design, brand-guidelines, doc-coauthoring, slack-gif-creator, internal-comms, algorithmic-art, theme-factory | 文档/API |
+| `feature-dev` | v1.0.0 | feature-dev | 功能开发 |
+| `code-simplifier` | v1.0.0 | code-simplifier | 代码精简 |
+| `context7` | - | resolve-library-id, query-docs | 库文档实时查询 |
+| `consensus-debate` (three-cobblers) | v1.0.0 | consensus-debate | 多模型博弈评审 |
+| `ralph-wiggum` | v1.0.0 | ralph-wiggum | 辅助工具 |
+| `code-review` | v1.0.0 | code-review | 代码审查 |
 
 ---
 
