@@ -6,7 +6,9 @@
  * --superpowers, --gstack, or --all flags, this configurator copies additional
  * templates and updates config.yaml.
  */
+import { execSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile, ensureDir } from "../utils/file-writer.js";
@@ -21,14 +23,191 @@ export interface Enhancements {
   gstack: boolean;
 }
 
+// =============================================================================
+// Dependency Detection & Auto-Installation
+// =============================================================================
+
+const HOME = os.homedir();
+
+/**
+ * Run a shell command, returning true on success.
+ */
+function run(cmd: string, opts?: { cwd?: string }): boolean {
+  try {
+    execSync(cmd, { stdio: "pipe", timeout: 120_000, ...opts });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if Superpowers plugin is installed.
+ */
+function isSuperpowersInstalled(): boolean {
+  // Check plugin cache
+  const cacheDir = path.join(
+    HOME,
+    ".claude",
+    "plugins",
+    "cache",
+    "claude-plugins-official",
+    "superpowers",
+  );
+  if (fs.existsSync(cacheDir)) return true;
+
+  // Check installed_plugins.json
+  const installedPath = path.join(
+    HOME,
+    ".claude",
+    "plugins",
+    "installed_plugins.json",
+  );
+  if (fs.existsSync(installedPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(installedPath, "utf-8"));
+      return Object.keys(data).some((k) => k.includes("superpowers"));
+    } catch {
+      // ignore parse errors
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if gstack skills are installed.
+ */
+function isGstackInstalled(): boolean {
+  const skillDir = path.join(HOME, ".claude", "skills", "gstack");
+  return (
+    fs.existsSync(path.join(skillDir, "SKILL.md")) ||
+    fs.existsSync(path.join(skillDir, "package.json"))
+  );
+}
+
+/**
+ * Check if GitNexus index exists for the project.
+ */
+function isGitnexusIndexed(cwd: string): boolean {
+  return fs.existsSync(path.join(cwd, ".gitnexus", "meta.json"));
+}
+
+/**
+ * Auto-install Superpowers plugin via Claude Code CLI.
+ */
+function installSuperpowers(): boolean {
+  console.log("  Installing Superpowers plugin...");
+  const ok = run("claude plugin install superpowers@claude-plugins-official");
+  if (ok) {
+    console.log("  ✓ Superpowers plugin installed");
+  } else {
+    console.log(
+      "  ⚠ Could not auto-install Superpowers. Install manually: claude plugin install superpowers@claude-plugins-official",
+    );
+  }
+  return ok;
+}
+
+/**
+ * Auto-install gstack skills via git clone + setup.
+ */
+function installGstack(): boolean {
+  const targetDir = path.join(HOME, ".claude", "skills", "gstack");
+
+  // Already exists but incomplete? Skip.
+  if (fs.existsSync(targetDir)) {
+    console.log(
+      "  ⚠ gstack directory exists but incomplete. Try: cd ~/.claude/skills/gstack && ./setup --host claude",
+    );
+    return false;
+  }
+
+  console.log("  Cloning gstack...");
+  if (!run(`git clone https://github.com/garrytan/gstack.git "${targetDir}"`)) {
+    console.log("  ⚠ Could not clone gstack. Install manually:");
+    console.log(
+      "    git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack",
+    );
+    console.log("    cd ~/.claude/skills/gstack && ./setup --host claude");
+    return false;
+  }
+
+  console.log("  Running gstack setup...");
+  if (!run("./setup --host claude", { cwd: targetDir })) {
+    console.log(
+      "  ⚠ gstack setup failed. You may need bun installed. Run manually:",
+    );
+    console.log("    cd ~/.claude/skills/gstack && ./setup --host claude");
+    return false;
+  }
+
+  console.log("  ✓ gstack skills installed");
+  return true;
+}
+
+/**
+ * Auto-index project with GitNexus.
+ */
+function indexGitnexus(cwd: string): boolean {
+  console.log(
+    "  Indexing project with GitNexus (first run may take a moment)...",
+  );
+  const ok = run("npx gitnexus analyze", { cwd });
+  if (ok) {
+    console.log("  ✓ GitNexus index created");
+  } else {
+    console.log(
+      "  ⚠ GitNexus indexing failed. Run manually: npx gitnexus analyze",
+    );
+  }
+  return ok;
+}
+
+/**
+ * Check and install all required dependencies before configuring enhancements.
+ */
+function ensureDependencies(cwd: string, enhancements: Enhancements): void {
+  console.log("");
+  console.log("🔍 Checking dependencies...");
+
+  if (enhancements.superpowers && !isSuperpowersInstalled()) {
+    console.log("  ⚠ Superpowers plugin not found.");
+    installSuperpowers();
+  } else if (enhancements.superpowers) {
+    console.log("  ✓ Superpowers plugin found");
+  }
+
+  if (enhancements.gstack && !isGstackInstalled()) {
+    console.log("  ⚠ gstack skills not found.");
+    installGstack();
+  } else if (enhancements.gstack) {
+    console.log("  ✓ gstack skills found");
+  }
+
+  if (enhancements.gitnexus && !isGitnexusIndexed(cwd)) {
+    indexGitnexus(cwd);
+  } else if (enhancements.gitnexus) {
+    console.log("  ✓ GitNexus index found");
+  }
+
+  console.log("");
+}
+
+// =============================================================================
+// Enhancement Configuration
+// =============================================================================
+
 /**
  * Configure enhancement integrations for the current project.
- * Copies templates and updates config.yaml based on which enhancements are enabled.
+ * Checks dependencies first, then copies templates and updates config.yaml.
  */
 export async function configureEnhancements(
   cwd: string,
   enhancements: Enhancements,
 ): Promise<void> {
+  // Check and auto-install dependencies before configuring
+  ensureDependencies(cwd, enhancements);
+
   if (enhancements.gitnexus) {
     await configureGitnexus(cwd);
   }
