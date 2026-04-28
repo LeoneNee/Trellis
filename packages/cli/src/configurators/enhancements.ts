@@ -225,6 +225,8 @@ export async function configureEnhancements(
  * Configure GitNexus integration:
  * - Copy gitnexus hooks to .claude/hooks/
  * - Copy enhanced agents to .claude/agents/
+ * - Overwrite settings.json with full version (includes global hooks)
+ * - Overwrite AGENTS.md with full version (includes workflow + routing table)
  */
 async function configureGitnexus(cwd: string): Promise<void> {
   const claudeHooksDir = path.join(cwd, ".claude", "hooks");
@@ -233,7 +235,7 @@ async function configureGitnexus(cwd: string): Promise<void> {
   ensureDir(claudeHooksDir);
   ensureDir(claudeAgentsDir);
 
-  // Copy gitnexus hooks
+  // Copy gitnexus hooks (includes global hooks: gitnexus-hook.cjs, auto-approve-hook.cjs, harness-hook.cjs)
   const hooksSource = getEnhancementsDir("gitnexus", "hooks");
   if (fs.existsSync(hooksSource)) {
     for (const file of fs.readdirSync(hooksSource)) {
@@ -253,6 +255,22 @@ async function configureGitnexus(cwd: string): Promise<void> {
       const content = fs.readFileSync(src, "utf-8");
       await writeFile(dest, content);
     }
+  }
+
+  // Overwrite settings.json with full version (includes global hooks registration)
+  const fullSettingsSource = getEnhancementsDir("gitnexus", "settings.json");
+  if (fs.existsSync(fullSettingsSource)) {
+    const dest = path.join(cwd, ".claude", "settings.json");
+    const content = fs.readFileSync(fullSettingsSource, "utf-8");
+    await writeFile(dest, content);
+  }
+
+  // Overwrite AGENTS.md with full version (includes 7-stage workflow + routing table)
+  const fullAgentsSource = getEnhancementsDir("gitnexus", "agents.md");
+  if (fs.existsSync(fullAgentsSource)) {
+    const dest = path.join(cwd, "AGENTS.md");
+    const content = fs.readFileSync(fullAgentsSource, "utf-8");
+    await writeFile(dest, content);
   }
 
   console.log("  ✓ GitNexus integration configured");
