@@ -2,9 +2,9 @@
 /**
  * Harness Knowledge Base Hook for Claude Code
  *
- * PreToolUse — detects when working in any project with a .harness
+ * PreToolUse — detects when working in any project with a .trellis/lessons
  *               directory and reminds the agent to check it before tasks.
- *             — if .harness doesn't exist, initializes one automatically.
+ *             — if .trellis/lessons doesn't exist, initializes one automatically.
  */
 
 const fs = require('fs');
@@ -20,13 +20,13 @@ function readInput() {
 }
 
 /**
- * Find .harness directory by walking up from startDir.
- * Returns the path to .harness/ or null if not found.
+ * Find .trellis/lessons directory by walking up from startDir.
+ * Returns the path to .trellis/lessons/ or null if not found.
  */
-function findHarnessDir(startDir) {
+function findLessonsDir(startDir) {
   let dir = startDir || process.cwd();
   for (let i = 0; i < 8; i++) {
-    const candidate = path.join(dir, '.harness');
+    const candidate = path.join(dir, '.trellis', 'lessons');
     if (fs.existsSync(candidate)) return candidate;
     const parent = path.dirname(dir);
     if (parent === dir) break;
@@ -36,12 +36,12 @@ function findHarnessDir(startDir) {
 }
 
 /**
- * Find project root (parent of .harness or cwd fallback).
+ * Find project root (parent of .trellis/lessons or cwd fallback).
  */
 function findProjectRoot(startDir) {
   let dir = startDir || process.cwd();
   for (let i = 0; i < 8; i++) {
-    const candidate = path.join(dir, '.harness');
+    const candidate = path.join(dir, '.trellis', 'lessons');
     if (fs.existsSync(candidate)) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
@@ -58,7 +58,7 @@ function getRelativePath(targetPath) {
   return targetPath;
 }
 
-const README_TEMPLATE = `# .harness Knowledge Base
+const README_TEMPLATE = `# Lessons Knowledge Base
 
 This directory stores lessons learned from development work in this project.
 
@@ -68,7 +68,7 @@ Its purpose is to help the AI avoid repeated mistakes, improve implementation qu
 
 Before implementing any task, the AI must:
 
-1. Read \`.harness/INDEX.md\`
+1. Read \`.trellis/lessons/INDEX.md\`
 2. Look for relevant past lessons by:
    - feature
    - module
@@ -81,7 +81,7 @@ Before implementing any task, the AI must:
 
 ## What to do after fixing a bug
 
-After a bug is successfully fixed, the AI must create or update a lesson document in \`.harness/lessons/\`.
+After a bug is successfully fixed, the AI must create or update a lesson document in \`.trellis/lessons/\`.
 
 The lesson should include:
 
@@ -94,14 +94,14 @@ The lesson should include:
 - tags
 - search keywords
 
-The AI must also update \`.harness/INDEX.md\`.
+The AI must also update \`.trellis/lessons/INDEX.md\`.
 
 ## Goal
 
 The goal of this knowledge base is to make past mistakes searchable and reusable, so future tasks can avoid similar problems earlier in development.
 `;
 
-const INDEX_TEMPLATE = `# .harness Index
+const INDEX_TEMPLATE = `# Lessons Index
 
 > Auto-generated on first initialization. Update this file whenever you add new lessons.
 
@@ -184,7 +184,7 @@ const TASK_PRECHECK_TEMPLATE = `# Task Precheck
 
 ---
 
-## Historical Lessons (from .harness)
+## Historical Lessons (from .trellis/lessons)
 
 **Related lessons found:** <N>
 
@@ -218,30 +218,30 @@ const TASK_PRECHECK_TEMPLATE = `# Task Precheck
 `;
 
 /**
- * Initialize .harness directory structure for a project.
+ * Initialize .trellis/lessons directory structure for a project.
  */
-function initializeHarness(projectRoot) {
+function initializeLessons(projectRoot) {
   const dirs = [
-    '.harness/lessons/backend',
-    '.harness/lessons/frontend',
-    '.harness/lessons/database',
-    '.harness/lessons/infrastructure',
-    '.harness/tags',
-    '.harness/templates',
+    '.trellis/lessons/backend',
+    '.trellis/lessons/frontend',
+    '.trellis/lessons/database',
+    '.trellis/lessons/infrastructure',
+    '.trellis/lessons/tags',
+    '.trellis/lessons/templates',
   ];
 
   const files = [
-    { name: '.harness/README.md', content: README_TEMPLATE },
+    { name: '.trellis/lessons/README.md', content: README_TEMPLATE },
     {
-      name: '.harness/INDEX.md',
+      name: '.trellis/lessons/INDEX.md',
       content: INDEX_TEMPLATE.replace('{DATE}', new Date().toISOString().split('T')[0]),
     },
     {
-      name: '.harness/templates/bug-lesson-template.md',
+      name: '.trellis/lessons/templates/bug-lesson-template.md',
       content: BUG_LESSON_TEMPLATE.replace('{DATE}', new Date().toISOString().split('T')[0]),
     },
     {
-      name: '.harness/templates/task-precheck-template.md',
+      name: '.trellis/lessons/templates/task-precheck-template.md',
       content: TASK_PRECHECK_TEMPLATE,
     },
   ];
@@ -274,17 +274,17 @@ function initializeHarness(projectRoot) {
   return { created, errors };
 }
 
-function buildReminder(harnessPath, projectName) {
-  const rel = getRelativePath(harnessPath);
+function buildReminder(lessonsPath, projectName) {
+  const rel = getRelativePath(lessonsPath);
   const lines = [
     '',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    `📚 Harness 知识库提醒`,
+    `📚 Lessons 知识库提醒`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     `项目: ${projectName}`,
     '',
     '在开始实现任务前，请确保已：',
-    `1. 读取 .harness/INDEX.md（主导航）`,
+    `1. 读取 .trellis/lessons/INDEX.md（主导航）`,
     `2. 读取相关 tags 文件`,
     `3. 按模板输出 Task Precheck（历史经验 × 当前风险）`,
     '',
@@ -301,7 +301,7 @@ function buildInitMessage(projectRoot, result) {
   const lines = [
     '',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    `📚 .harness 知识库已初始化`,
+    `📚 .trellis/lessons 知识库已初始化`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     `项目: ${rel}`,
     `创建了 ${result.created.length} 个文件/目录`,
@@ -310,8 +310,8 @@ function buildInitMessage(projectRoot, result) {
     ...result.created.map((p) => `  + ${p}`),
     '',
     '接下来：',
-    '1. 读取 .harness/INDEX.md 了解项目结构',
-    '2. 读取 .harness/templates/task-precheck-template.md',
+    '1. 读取 .trellis/lessons/INDEX.md 了解项目结构',
+    '2. 读取 .trellis/lessons/templates/task-precheck-template.md',
     '3. 开始工作时输出 Task Precheck',
     '4. 修 Bug 后写 lesson 沉淀经验',
     '',
@@ -326,7 +326,7 @@ function handlePreToolUse(input) {
   const cwd = input.cwd || process.cwd();
   if (!path.isAbsolute(cwd)) return;
 
-  const harnessPath = findHarnessDir(cwd);
+  const lessonsPath = findLessonsDir(cwd);
   const projectRoot = findProjectRoot(cwd);
   const projectName = projectRoot ? path.basename(projectRoot) : path.basename(cwd);
 
@@ -334,23 +334,23 @@ function handlePreToolUse(input) {
   const EDIT_TOOLS = new Set(['Edit', 'Write', 'Patch']);
   if (!EDIT_TOOLS.has(toolName)) return;
 
-  const sessionKey = 'HARNESS_HOOK_DONE';
+  const sessionKey = 'LESSONS_HOOK_DONE';
   if (process.env[sessionKey]) return;
 
   let message = '';
 
-  if (!harnessPath) {
-    // Initialize .harness for this project
+  if (!lessonsPath) {
+    // Initialize .trellis/lessons for this project
     if (projectRoot) {
       process.env[sessionKey] = '1';
-      const result = initializeHarness(projectRoot);
+      const result = initializeLessons(projectRoot);
       message = buildInitMessage(projectRoot, result);
       sendHookResponse('PreToolUse', message);
     }
   } else {
-    // Already has .harness, remind to use it
+    // Already has .trellis/lessons, remind to use it
     process.env[sessionKey] = '1';
-    message = buildReminder(harnessPath, projectName);
+    message = buildReminder(lessonsPath, projectName);
     sendHookResponse('PreToolUse', message);
   }
 }

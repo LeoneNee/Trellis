@@ -29,7 +29,7 @@
 │                          用户输入 Prompt                                      │
 │                                                                             │
 │  触发 Hook: UserPromptSubmit                                                │
-│  ├── lesson-search.py   → 搜索 .harness/lessons/ 匹配经验注入上下文           │
+│  ├── lesson-search.py   → 搜索 .trellis/lessons/ 匹配经验注入上下文           │
 │  └── plan-intent 检测   → 检测"制定计划"意图，标记 /tmp/claude_plan_intent_*  │
 └──────────────────────────────┬──────────────────────────────────────────────┘
                                │
@@ -152,7 +152,7 @@
                 ├── gitnexus_detect_changes → 确认影响范围
                 │
                 └── Hook: SubagentStop
-                    └── lesson-capture.py → 经验沉淀到 .harness/lessons/
+                    └── lesson-capture.py → 经验沉淀到 .trellis/lessons/
 
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -276,7 +276,7 @@
      │         │                               │
      │  lesson-capture.py ←─ subagent 停止时捕获 │
      │         │                               │
-     │         └──→ .harness/lessons/*.md       │
+     │         └──→ .trellis/lessons/*.md       │
      │                                          │
      │  harness-hook.cjs ──→ 首次编辑时初始化     │
      │                  └──→ 后续编辑时提醒检查    │
@@ -557,7 +557,7 @@ pnpm dev                   # 前端联调
    → 每个功能独立 worktree + subagent
    → 各自 TDD 循环
    → 完成后各自 gitnexus_detect_changes
-   → 经验自动沉淀到 .harness/lessons/
+   → 经验自动沉淀到 .trellis/lessons/
 ```
 
 ---

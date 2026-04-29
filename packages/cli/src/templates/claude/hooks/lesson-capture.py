@@ -3,14 +3,14 @@
 """
 Lesson Capture Hook - SubagentStop
 
-在 sub-agent 完成错误修复时自动记录 lesson 到 .harness/lessons/
+在 sub-agent 完成错误修复时自动记录 lesson 到 .trellis/lessons/
 
 触发条件（满足任一）：
 1. 消息中包含 "bug", "fix", "修复", "error", "issue" 等关键词
 2. git diff 中有 "fix", "bug", "patch" 等关键词
 3. 最后一条 assistant 消息中包含修复相关的标记
 
-写入位置: .harness/lessons/YYYY-MM-DD-{slug}.md
+写入位置: .trellis/lessons/YYYY-MM-DD-{slug}.md
 """
 
 from __future__ import annotations
