@@ -391,7 +391,7 @@ pnpm build && npm link
 
 # 2. 在目标项目中初始化
 cd your-project
-trellis init --claude --all -u nizhihao
+trellis init --claude --all -u <你的名字>
 
 # 3. 启动 Claude Code
 claude
