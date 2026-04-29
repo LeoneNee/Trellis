@@ -230,22 +230,6 @@ function ensureDependencies(cwd: string, enhancements: Enhancements): void {
     }
   }
 
-  // Warn about consensus-debate env vars
-  if (enhancements.gitnexus) {
-    const hasApiKey = !!process.env.CONSENSUS_DEBATE_API_KEY;
-    const hasEndpoint = !!process.env.CONSENSUS_DEBATE_ENDPOINT;
-    if (!hasApiKey || !hasEndpoint) {
-      console.log(
-        "  ⚠ consensus-debate env vars not set (CONSENSUS_DEBATE_API_KEY, CONSENSUS_DEBATE_ENDPOINT).",
-      );
-      console.log(
-        "    Multi-model review will use empty placeholders. Set these in your shell or ~/.claude/settings.json env section.",
-      );
-    } else {
-      console.log("  ✓ consensus-debate env vars found");
-    }
-  }
-
   console.log("");
 }
 
@@ -342,7 +326,7 @@ async function configureGitnexus(cwd: string): Promise<void> {
 /**
  * Configure consensus-debate skill:
  * - Copy scripts (run_debate.py, review_wrapper.py) to .claude/skills/consensus-debate/scripts/
- * - Generate models.json template with environment variable placeholders
+ * - Copy models.json template as a reference (user must fill in their own models)
  */
 async function configureConsensusDebate(cwd: string): Promise<void> {
   const scriptsDir = path.join(
@@ -357,8 +341,6 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
   const scriptsSource = getEnhancementsDir("consensus-debate", "scripts");
   if (fs.existsSync(scriptsSource)) {
     for (const file of fs.readdirSync(scriptsSource)) {
-      // Skip models.json — we generate it from environment variables
-      if (file === "models.json") continue;
       const src = path.join(scriptsSource, file);
       const dest = path.join(scriptsDir, file);
       const content = fs.readFileSync(src, "utf-8");
@@ -366,11 +348,45 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
     }
   }
 
-  // Generate models.json with environment variable placeholders
-  // Users must set CONSENSUS_DEBATE_API_KEY and CONSENSUS_DEBATE_ENDPOINT
-  // in their ~/.claude/settings.json env section or shell environment
-  const modelsJson = generateModelsJsonTemplate();
-  await writeFile(path.join(scriptsDir, "models.json"), modelsJson);
+  // If models.json was copied with template placeholders, add a comment header
+  const modelsPath = path.join(scriptsDir, "models.json");
+  if (fs.existsSync(modelsPath)) {
+    let modelsContent = fs.readFileSync(modelsPath, "utf-8");
+    if (modelsContent.includes("{{")) {
+      // Replace template placeholders with a clear example structure
+      modelsContent = JSON.stringify(
+        [
+          {
+            name: "participant-1",
+            endpoint: "https://your-api-endpoint/v1/chat/completions",
+            api_key: "your-api-key",
+            model: "your-model-name",
+            role: "participant",
+            protocol: "openai",
+          },
+          {
+            name: "participant-2",
+            endpoint: "https://your-api-endpoint/v1/chat/completions",
+            api_key: "your-api-key",
+            model: "another-model-name",
+            role: "participant",
+            protocol: "openai",
+          },
+          {
+            name: "judge",
+            endpoint: "https://your-api-endpoint/v1/chat/completions",
+            api_key: "your-api-key",
+            model: "your-judge-model",
+            role: "judge",
+            protocol: "openai",
+          },
+        ],
+        null,
+        2,
+      );
+      fs.writeFileSync(modelsPath, modelsContent, "utf-8");
+    }
+  }
 
   // Copy SKILL.md if it exists
   const skillSource = getEnhancementsDir("consensus-debate", "skills");
@@ -387,54 +403,10 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
 
   console.log("  ✓ consensus-debate skill configured");
   console.log(
-    "    ⚠ Set CONSENSUS_DEBATE_API_KEY and CONSENSUS_DEBATE_ENDPOINT in environment to enable multi-model review",
+    "    ⚠ Edit .claude/skills/consensus-debate/scripts/models.json to configure your models",
   );
-}
-
-/**
- * Generate models.json template with env var placeholders.
- * Values are read from environment at runtime by run_debate.py.
- */
-function generateModelsJsonTemplate(): string {
-  // Check if env vars are set — if so, use them; otherwise use placeholders
-  const apiKey = process.env.CONSENSUS_DEBATE_API_KEY ?? "";
-  const endpoint = process.env.CONSENSUS_DEBATE_ENDPOINT ?? "";
-  const judgeModel =
-    process.env.CONSENSUS_DEBATE_JUDGE_MODEL ?? "your-judge-model";
-  const participantModel =
-    process.env.CONSENSUS_DEBATE_PARTICIPANT_MODEL ?? "your-participant-model";
-  const participantModel2 =
-    process.env.CONSENSUS_DEBATE_PARTICIPANT_MODEL_2 ?? participantModel;
-
-  return JSON.stringify(
-    [
-      {
-        name: "judge",
-        endpoint,
-        api_key: apiKey,
-        model: judgeModel,
-        role: "judge",
-        protocol: "openai",
-      },
-      {
-        name: "participant-1",
-        endpoint,
-        api_key: apiKey,
-        model: participantModel,
-        role: "participant",
-        protocol: "openai",
-      },
-      {
-        name: "participant-2",
-        endpoint,
-        api_key: apiKey,
-        model: participantModel2,
-        role: "participant",
-        protocol: "openai",
-      },
-    ],
-    null,
-    2,
+  console.log(
+    "    Need: 2+ participants + 1 judge, each with endpoint/api_key/model/role/protocol",
   );
 }
 

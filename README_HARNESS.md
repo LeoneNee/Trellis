@@ -414,11 +414,10 @@ trellis init --claude --all -u yourname
 # 自动安装缺失的依赖
 # 自动创建：.claude-approve、项目级 hooks、consensus-debate 脚本
 
-# 3. 配置 consensus-debate 模型（每个成员设置自己的 API key）
-# 方式一：环境变量
-export CONSENSUS_DEBATE_API_KEY="your-api-key"
-export CONSENSUS_DEBATE_ENDPOINT="https://your-api-endpoint/v1/chat/completions"
-# 方式二：写入 ~/.claude/settings.json 的 env 节
+# 3. 配置 consensus-debate 模型（每个成员编辑自己的配置）
+# 编辑 .claude/skills/consensus-debate/scripts/models.json
+# 需要：2+ 个 participant + 1 个 judge，每个模型独立配置 endpoint/api_key/model/role/protocol
+# protocol 支持 "openai" 或 "anthropic"
 
 # 4. 启动 Claude Code
 claude
