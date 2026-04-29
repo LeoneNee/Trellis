@@ -89,7 +89,16 @@ function isGstackInstalled(): boolean {
  * Check if GitNexus index exists for the project.
  */
 function isGitnexusIndexed(cwd: string): boolean {
-  return fs.existsSync(path.join(cwd, ".gitnexus", "meta.json"));
+  const metaPath = path.join(cwd, ".gitnexus", "meta.json");
+  if (!fs.existsSync(metaPath)) return false;
+  try {
+    const data = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+    const files = data.stats?.files ?? 0;
+    const nodes = data.stats?.nodes ?? 0;
+    return files > 0 || nodes > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -184,7 +193,17 @@ function indexGitnexus(cwd: string): boolean {
   );
   const ok = run("npx gitnexus analyze", { cwd });
   if (ok) {
-    console.log("  ✓ GitNexus index created");
+    // Verify the index is actually non-empty
+    if (isGitnexusIndexed(cwd)) {
+      console.log("  ✓ GitNexus index created");
+    } else {
+      console.log(
+        "  ⚠ GitNexus index is empty. This usually means no source files are committed yet.",
+      );
+      console.log(
+        "     After committing your files, run: npx gitnexus analyze",
+      );
+    }
   } else {
     console.log(
       "  ⚠ GitNexus indexing failed. Run manually: npx gitnexus analyze",
