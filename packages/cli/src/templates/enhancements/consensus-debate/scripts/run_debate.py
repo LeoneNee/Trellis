@@ -40,6 +40,7 @@ class ModelClient:
         }
         payload = {
             "model": self.config.model,
+            "max_tokens": 16384,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -214,7 +215,9 @@ async def _safe_chat(
         result = await client.chat(system, user)
         return name, result
     except Exception as e:
+        import traceback
         print(f"[consensus-engine] {name} 失败：{e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return name, None
 
 

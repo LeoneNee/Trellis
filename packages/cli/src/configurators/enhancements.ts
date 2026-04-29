@@ -273,6 +273,13 @@ async function configureGitnexus(cwd: string): Promise<void> {
     await writeFile(dest, content);
   }
 
+  // Create .claude-approve marker for auto-approve hook
+  const approveMarker = path.join(cwd, ".claude-approve");
+  if (!fs.existsSync(approveMarker)) {
+    await writeFile(approveMarker, "");
+    console.log("  ✓ Created .claude-approve marker (auto-approve enabled)");
+  }
+
   console.log("  ✓ GitNexus integration configured");
 }
 

@@ -13,11 +13,11 @@
 | Hooks 系统 | ✅ 就绪 | 7 类钩子覆盖全生命周期 |
 | GitNexus 集成 | ✅ 就绪 | Pre/Post 工具钩子 + MCP 工具 |
 | Superpowers 插件 | ✅ 就绪 | 14 个 skill 已缓存 |
-| gstack 技能 | ✅ 就绪 | 39 个 skill 已安装 (v1.15.0) |
+| gstack 技能 | ✅ 就绪 | 43 个 skill 已安装 (v1.15.0) |
 | Harness 知识库 | ✅ 已注册 | PreToolUse(Edit\|Write\|Patch) 触发提醒 |
 | Lesson Capture | ✅ 就绪 | prompt 匹配 + subagent 停止时捕获 |
-| Auto-Approve | ✅ 就绪 | `.claude-approve` 标记项目自动授权 |
-| 共识博弈 | ✅ 就绪 | three-cobblers 插件，git commit 时自动触发 + Stop 钩子正确指向 |
+| Auto-Approve | ✅ 就绪 | `trellis init --all` 自动创建 `.claude-approve` 标记 |
+| 共识博弈 | ✅ 就绪 | 本地 skill，git commit 时自动触发 + Stop 钩子正确指向 |
 | 计划自动审查 | ✅ 已修复 | Stop 钩子 → `/consensus-debate`（实际存在） |
 
 ---
@@ -203,9 +203,11 @@
                 ├── bump VERSION
                 ├── 更新 CHANGELOG
                 │
-                ├── git commit + push
+                ├── git commit
                 │   └── Hook: PreToolUse(Bash git commit*)
                 │       └── consensus-debate/review_wrapper.py → 多模型博弈 review
+                │
+                ├── git push
                 │
                 └── Skill("superpowers:verification-before-completion")
                     └── 提交前必须跑验证命令 + 确认输出
@@ -285,7 +287,7 @@
 
 ## 五、Skill 来源映射表
 
-### gstack Skills（本地安装，v1.15.0，39 个）
+### gstack Skills（本地安装，v1.15.0，43 个）
 
 | Skill 名称 | 文件路径 | 阶段 |
 |------------|---------|------|
@@ -331,6 +333,7 @@
 | `setup-browser-cookies` | `~/.claude/skills/gstack/setup-browser-cookies/` | Cookie 导入 |
 | `setup-gbrain` | `~/.claude/skills/gstack/setup-gbrain/` | gbrain 配置 |
 | `gstack-upgrade` | `~/.claude/skills/gstack/gstack-upgrade/` | gstack 升级 |
+| `open-gstack-browser` | `~/.claude/skills/gstack/open-gstack-browser/` | GStack 浏览器启动 |
 
 ### Superpowers Skills（插件缓存 v5.0.7）
 
@@ -353,9 +356,9 @@
 
 | Skill 名称 | 路径 | 用途 |
 |------------|-----|------|
-| `consensus-debate` | `three-cobblers 插件` | 多模型博弈评审 |
+| `consensus-debate` | `~/.claude/skills/consensus-debate/` | 多模型博弈评审 |
 
-### 插件 Skills（完整列表，9 个插件）
+### 插件 Skills（已启用，5 个）
 
 | 插件 | 版本 | Skills | 用途 |
 |------|------|--------|------|
@@ -364,10 +367,12 @@
 | `document-skills` | - | pdf, xlsx, docx, pptx, claude-api, mcp-builder, skill-creator, frontend-design, web-artifacts-builder, webapp-testing, canvas-design, brand-guidelines, doc-coauthoring, slack-gif-creator, internal-comms, algorithmic-art, theme-factory | 文档/API |
 | `feature-dev` | v1.0.0 | feature-dev | 功能开发 |
 | `code-simplifier` | v1.0.0 | code-simplifier | 代码精简 |
-| `context7` | - | resolve-library-id, query-docs | 库文档实时查询 |
-| `consensus-debate` (three-cobblers) | v1.0.0 | consensus-debate | 多模型博弈评审 |
-| `ralph-wiggum` | v1.0.0 | ralph-wiggum | 辅助工具 |
-| `code-review` | v1.0.0 | code-review | 代码审查 |
+
+### 其他已注册插件（未启用，通过 context7 MCP 服务提供）
+
+| 插件 | 服务方式 | 用途 |
+|------|---------|------|
+| `context7` | MCP Server（resolve-library-id, query-docs） | 库文档实时查询 |
 
 ---
 
@@ -383,6 +388,7 @@ pnpm build && npm link
 # 2. 在目标项目中初始化（生成 .trellis/ 结构 + 平台配置）
 cd your-project
 trellis init --claude --all -u yourname
+# --all 会自动创建 .claude-approve（启用 auto-approve）+ 安装 hooks + 配置增强
 
 # 3. 启动 Claude Code
 claude
@@ -412,23 +418,23 @@ claude
 
 ### 6.3 GitNexus 代码智能
 
-改代码前必须查影响范围，改完后确认影响：
+GitNexus 通过 MCP 工具调用工作，由 AI agent 自动执行（非用户手动输入的 CLI 命令）：
 
 ```
 # 改代码前 — 查爆炸半径
-> gitnexus impact on "functionName"
+> gitnexus_impact({target: "functionName", direction: "upstream"})
 
 # 改代码后 — 确认影响范围
-> gitnexus detect changes
+> gitnexus_detect_changes({scope: "staged"})
 
 # 搜索执行流
-> gitnexus query "用户认证流程"
+> gitnexus_query({query: "用户认证流程"})
 
 # 查看符号完整上下文
-> gitnexus context for "validateUser"
+> gitnexus_context({name: "validateUser"})
 
 # API 兼容检查
-> gitnexus shape check /api/users
+> gitnexus_shape_check({route: "/api/users"})
 ```
 
 ### 6.4 验证循环（铁律）
@@ -525,3 +531,11 @@ pnpm dev                   # 前端联调
 | 3 | CLAUDE.md 用 `/trellis:xxx` 格式无法映射 | 改为 `Skill("actual-name")` 格式 | `CLAUDE.md` |
 | 4 | 阶段3 语义混淆（code-review vs plan review） | 阶段3 → `plan-eng-review`，阶段5 → `review` | `CLAUDE.md` |
 | 5 | 路由表缺少 gstack↔superpowers 映射 | 补全映射表 + 扩展路由至 18 项 | `CLAUDE.md` |
+| 6 | `.claude-approve` 缺失导致 auto-approve 不生效 | `configureGitnexus` 自动创建 `.claude-approve` | `enhancements.ts`, `readme_harness.md` |
+| 7 | 6.3 节 GitNexus CLI 命令格式虚构 | 改为 MCP 工具调用格式（`gitnexus_impact(...)`） | `readme_harness.md` |
+| 8 | gstack 技能数量错误（39→43）+ 缺少 `open-gstack-browser` | 更新数量 + 补充缺失技能 | `readme_harness.md` |
+| 9 | `consensus-debate` 标注为插件但实际是本地 skill | 移至"本地 Skills"分类 | `readme_harness.md` |
+| 10 | 插件表列出 `ralph-wiggum`、`code-review` 但未启用 | 移除未启用插件，保留已启用的 5 个 | `readme_harness.md` |
+| 11 | 阶段7 流程图 `git commit + push` 混为一行 | 拆分为独立的 `git commit` + `git push` | `readme_harness.md` |
+| 12 | `consensus-debate` models.json endpoint 缺少路径 | 添加 `/v1/chat/completions` 路径 | `models.json` |
+| 13 | `run_debate.py` openai 协议缺少 `max_tokens` | 添加 `max_tokens: 16384` | `run_debate.py` |
