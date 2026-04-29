@@ -399,19 +399,19 @@ claude
 
 > **前提**：`~/.claude/` 下已有 hooks、skills、plugins，以及 `~/.claude.json` 中配置了 GitNexus MCP。
 
-#### 方案 B：项目级全量配置（团队使用，自动安装依赖）
+#### 方案 B：团队使用（自动安装依赖）
 
-适合给团队成员使用。`--all` 会自动检测并安装缺失的用户级依赖（superpowers 插件、gstack skills、GitNexus MCP），并将 hooks 和 consensus-debate 脚本打包进项目：
+团队成员也使用本仓库版本（包含自定义改动），`--all` 会自动检测并安装缺失的用户级依赖：
 
 ```bash
-# 1. 安装 trellis CLI
-npm link  # 或 npm install -g @mindfoldhq/trellis@latest
+# 1. 克隆并安装 trellis CLI
+git clone <你的仓库地址> /path/to/Trellis
+cd /path/to/Trellis && pnpm install && pnpm build && npm link
 
 # 2. 在目标项目中初始化（自动检测 + 安装缺失依赖）
 cd your-project
 trellis init --claude --all -u yourname
-# 自动检测：superpowers 插件、gstack skills、GitNexus MCP
-# 自动安装缺失的依赖
+# 自动检测并安装：superpowers 插件、gstack skills、GitNexus MCP
 # 自动创建：.claude-approve、项目级 hooks、consensus-debate 脚本
 
 # 3. 配置 consensus-debate 模型（每个成员编辑自己的配置）
@@ -423,17 +423,18 @@ trellis init --claude --all -u yourname
 claude
 ```
 
-> **注意**: `npm install -g @mindfoldhq/trellis@latest` 安装的是原版 v0.4.0，不包含本仓库的自定义改动（task_sync、import-plan/sync-status 等）。必须用 `npm link` 从本地安装。
+> **注意**: 不要使用 `npm install -g @mindfoldhq/trellis@latest`，那是原版 v0.4.0，不包含本仓库的自定义改动。
 
 #### 方案 A vs B 对比
 
 | 维度 | 方案 A（自用） | 方案 B（团队） |
 |------|--------------|--------------|
+| Trellis CLI | 已 link | 团队成员 `git clone` + `npm link`（同一仓库） |
 | 用户级依赖 | 已安装，复用 | `--all` 自动检测并安装 |
 | 项目级 hooks | settings.json + `.claude/hooks/` | 同左 |
-| consensus-debate | 本地 `~/.claude/skills/` | 项目级 `.claude/skills/`（从 env vars 生成 models.json） |
+| consensus-debate | 本地 `~/.claude/skills/` | 项目级 `.claude/skills/`（编辑 models.json 配置模型） |
 | GitNexus MCP | 用户级 `~/.claude.json` | 自动注册（`npx gitnexus setup`） |
-| API keys | 不在项目中 | 不在项目中（通过环境变量，init 时提示配置） |
+| API keys | 不在项目中 | 不在项目中（每人编辑自己的 models.json） |
 
 ### 6.2 日常工作流（7 阶段）
 
