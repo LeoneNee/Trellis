@@ -351,6 +351,60 @@ Read and follow all instructions below carefully.
     output.write(run_script(context_script))
     output.write("\n</current-state>\n\n")
 
+    # GitNexus index freshness check
+    gn_dir = project_dir / ".gitnexus"
+    if gn_dir.is_dir():
+        meta_file = gn_dir / "meta.json"
+        if meta_file.is_file():
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8", errors="ignore"))
+                last_commit = meta.get("lastCommit", "")
+                head_result = subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=project_dir,
+                    capture_output=True, text=True, timeout=3,
+                )
+                current_head = head_result.stdout.strip()
+                if last_commit and current_head and last_commit != current_head:
+                    output.write("<gitnexus-stale>\n")
+                    output.write(f"GitNexus index is stale (indexed: {last_commit[:7]}, HEAD: {current_head[:7]}).\n")
+                    output.write("Run before development: npx gitnexus analyze")
+                    if meta.get("stats", {}).get("embeddings", 0) > 0:
+                        output.write(" --embeddings")
+                    output.write("\n</gitnexus-stale>\n\n")
+            except Exception:
+                pass
+
+    # Lessons summary (Trellis projects use .trellis/lessons, fallback to .harness/lessons)
+    lessons_dir = project_dir / ".trellis" / "lessons"
+    if not lessons_dir.is_dir():
+        lessons_dir = project_dir / ".harness" / "lessons"
+    if lessons_dir.is_dir():
+        try:
+            lessons = [f for f in lessons_dir.rglob("*.md") if f.stat().st_size > 0]
+            if lessons:
+                lessons.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+                recent = lessons[:5]
+                output.write("<lessons-summary>\n")
+                output.write(f"Lessons knowledge base: {len(lessons)} lessons recorded.\n")
+                output.write("Recent:\n")
+                for lesson in recent:
+                    first_line = ""
+                    try:
+                        content = lesson.read_text(encoding="utf-8", errors="ignore")
+                        for line in content.split("\n"):
+                            line = line.strip()
+                            if line and line.startswith("# "):
+                                first_line = line[2:].strip()[:80]
+                                break
+                    except Exception:
+                        pass
+                    if first_line:
+                        output.write(f"  - {first_line}\n")
+                output.write("Search relevant lessons before starting development tasks.\n")
+                output.write("</lessons-summary>\n\n")
+        except Exception:
+            pass
+
     output.write("<workflow>\n")
     output.write(_build_workflow_toc(trellis_dir / "workflow.md"))
     output.write("\n</workflow>\n\n")

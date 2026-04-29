@@ -383,6 +383,32 @@ function createBootstrapTask(
 }
 
 /**
+ * Read enhancement status from config.yaml and filesystem.
+ * Returns array of enabled enhancement names for display.
+ */
+function readEnhancementStatus(cwd: string): string[] {
+  const enhancements: string[] = [];
+  const configPath = path.join(cwd, DIR_NAMES.WORKFLOW, "config.yaml");
+  try {
+    const content = fs.readFileSync(configPath, "utf-8");
+    if (content.includes("gitnexus:")) enhancements.push("GitNexus");
+    if (content.includes("superpowers:")) enhancements.push("Superpowers");
+    if (content.includes("gstack:")) enhancements.push("gstack");
+  } catch {
+    // config.yaml not found — no enhancements recorded
+  }
+  // consensus-debate is configured as a skill directory, not in config.yaml
+  if (
+    fs.existsSync(
+      path.join(cwd, ".claude", "skills", "consensus-debate", "SKILL.md"),
+    )
+  ) {
+    enhancements.push("consensus-debate");
+  }
+  return enhancements;
+}
+
+/**
  * Handle re-init when .trellis/ already exists.
  * Returns true if handled (caller should return), false if user chose full re-init.
  */
@@ -397,6 +423,9 @@ async function handleReinit(
     .map((id) => AI_TOOLS[id].name)
     .join(", ");
 
+  // Detect enhancement integrations
+  const enhancementNames = readEnhancementStatus(cwd);
+
   // Determine explicit platform flags
   const explicitTools = TOOLS.filter(
     (t) => options[t.key as keyof InitOptions],
@@ -410,6 +439,11 @@ async function handleReinit(
   if (!doAddPlatforms && !doAddDeveloper) {
     if (options.yes) {
       console.log(chalk.gray(`Already initialized with: ${configuredNames}`));
+      if (enhancementNames.length > 0) {
+        console.log(
+          chalk.gray(`  Enhancements: ${enhancementNames.join(", ")}`),
+        );
+      }
       console.log(
         chalk.gray(
           "Use platform flags (e.g., --codex) or -u <name> to add platforms/developer.",
@@ -421,6 +455,11 @@ async function handleReinit(
     console.log(
       chalk.gray(`\n   Already initialized with: ${configuredNames}\n`),
     );
+    if (enhancementNames.length > 0) {
+      console.log(
+        chalk.gray(`   Enhancements: ${enhancementNames.join(", ")}\n`),
+      );
+    }
 
     const { action } = await inquirer.prompt<{ action: string }>([
       {
