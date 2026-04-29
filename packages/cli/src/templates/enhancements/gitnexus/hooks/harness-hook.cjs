@@ -51,7 +51,7 @@ function findProjectRoot(startDir) {
 }
 
 function getRelativePath(targetPath) {
-  const home = process.env.HOME || '/Users/nizhihao';
+  const home = require('os').homedir();
   if (targetPath.startsWith(home)) {
     return targetPath.replace(home, '~');
   }

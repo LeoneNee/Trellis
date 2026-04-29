@@ -108,15 +108,11 @@ function extractPattern(toolName, toolInput) {
  * 3. Fall back to npx (returns empty string)
  */
 function resolveCliPath() {
-  let cliPath = "/Users/nizhihao/Library/pnpm/global/5/.pnpm/gitnexus@1.6.0_graphology-types@0.24.8_zod@4.3.6/node_modules/gitnexus/dist/cli/index.js";
-  if (!fs.existsSync(cliPath)) {
-    try {
-      cliPath = require.resolve('gitnexus/dist/cli/index.js');
-    } catch {
-      cliPath = '';
-    }
+  try {
+    return require.resolve('gitnexus/dist/cli/index.js');
+  } catch {
+    return '';
   }
-  return cliPath;
 }
 
 /**
