@@ -378,23 +378,64 @@
 
 ## 六、使用方式
 
-### 6.1 环境准备（首次）
+### 6.1 环境准备
+
+#### 方案 A：完整配置（自用，已有用户级依赖）
+
+适合已安装 gstack skills、superpowers 插件、GitNexus MCP 的用户。项目级只需生成配置结构：
 
 ```bash
 # 1. 从本地仓库构建并 link（包含自定义改动）
 cd /path/to/Trellis
 pnpm build && npm link
 
-# 2. 在目标项目中初始化（生成 .trellis/ 结构 + 平台配置）
+# 2. 在目标项目中初始化
 cd your-project
-trellis init --claude --all -u yourname
-# --all 会自动创建 .claude-approve（启用 auto-approve）+ 安装 hooks + 配置增强
+trellis init --claude --all -u nizhihao
 
 # 3. 启动 Claude Code
 claude
 ```
 
+> **前提**：`~/.claude/` 下已有 hooks、skills、plugins，以及 `~/.claude.json` 中配置了 GitNexus MCP。
+
+#### 方案 B：项目级全量配置（团队使用，无需用户级依赖）
+
+适合给团队成员使用。所有 hooks、consensus-debate 脚本都打包进项目，成员无需预先安装：
+
+```bash
+# 1. 安装 trellis CLI
+npm link  # 或 npm install -g @mindfoldhq/trellis@latest
+
+# 2. 安装用户级依赖（每个成员执行一次）
+claude plugin install superpowers@claude-plugins-official
+git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+cd ~/.claude/skills/gstack && ./setup --host claude
+npx gitnexus setup --host claude
+
+# 3. 在目标项目中初始化（hooks + consensus-debate 打包进项目）
+cd your-project
+trellis init --claude --all -u yourname
+
+# 4. 配置 consensus-debate 模型（每个成员设置自己的 API key）
+export CONSENSUS_DEBATE_API_KEY="your-api-key"
+export CONSENSUS_DEBATE_ENDPOINT="https://your-api-endpoint/v1/chat/completions"
+
+# 5. 启动 Claude Code
+claude
+```
+
 > **注意**: `npm install -g @mindfoldhq/trellis@latest` 安装的是原版 v0.4.0，不包含本仓库的自定义改动（task_sync、import-plan/sync-status 等）。必须用 `npm link` 从本地安装。
+
+#### 方案 A vs B 对比
+
+| 维度 | 方案 A（自用） | 方案 B（团队） |
+|------|--------------|--------------|
+| 用户级依赖 | 已安装，复用 | 需要安装 |
+| 项目级 hooks | settings.json 注册 + 复制到 `.claude/hooks/` | 同左 |
+| consensus-debate | 本地 `~/.claude/skills/` | 项目级 `.claude/skills/`（从 env vars 生成 models.json） |
+| GitNexus MCP | 用户级 `~/.claude.json` | 用户级（需 `npx gitnexus setup`） |
+| API keys | 不在项目中 | 不在项目中（通过环境变量） |
 
 ### 6.2 日常工作流（7 阶段）
 
