@@ -93,6 +93,36 @@ function isGitnexusIndexed(cwd: string): boolean {
 }
 
 /**
+ * Check if GitNexus MCP server is registered in ~/.claude.json.
+ */
+function isGitnexusMcpRegistered(): boolean {
+  const claudeJsonPath = path.join(HOME, ".claude.json");
+  if (!fs.existsSync(claudeJsonPath)) return false;
+  try {
+    const data = JSON.parse(fs.readFileSync(claudeJsonPath, "utf-8"));
+    return !!data.mcpServers?.gitnexus;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Register GitNexus MCP server in ~/.claude.json via `npx gitnexus setup`.
+ */
+function registerGitnexusMcp(): boolean {
+  console.log("  Registering GitNexus MCP server...");
+  const ok = run("npx gitnexus setup --host claude");
+  if (ok) {
+    console.log("  ✓ GitNexus MCP registered");
+  } else {
+    console.log(
+      "  ⚠ Could not register GitNexus MCP. Run manually: npx gitnexus setup --host claude",
+    );
+  }
+  return ok;
+}
+
+/**
  * Auto-install Superpowers plugin via Claude Code CLI.
  */
 function installSuperpowers(): boolean {
@@ -184,10 +214,36 @@ function ensureDependencies(cwd: string, enhancements: Enhancements): void {
     console.log("  ✓ gstack skills found");
   }
 
-  if (enhancements.gitnexus && !isGitnexusIndexed(cwd)) {
-    indexGitnexus(cwd);
-  } else if (enhancements.gitnexus) {
-    console.log("  ✓ GitNexus index found");
+  if (enhancements.gitnexus) {
+    // Check MCP registration
+    if (!isGitnexusMcpRegistered()) {
+      registerGitnexusMcp();
+    } else {
+      console.log("  ✓ GitNexus MCP registered");
+    }
+
+    // Check project index
+    if (!isGitnexusIndexed(cwd)) {
+      indexGitnexus(cwd);
+    } else {
+      console.log("  ✓ GitNexus index found");
+    }
+  }
+
+  // Warn about consensus-debate env vars
+  if (enhancements.gitnexus) {
+    const hasApiKey = !!process.env.CONSENSUS_DEBATE_API_KEY;
+    const hasEndpoint = !!process.env.CONSENSUS_DEBATE_ENDPOINT;
+    if (!hasApiKey || !hasEndpoint) {
+      console.log(
+        "  ⚠ consensus-debate env vars not set (CONSENSUS_DEBATE_API_KEY, CONSENSUS_DEBATE_ENDPOINT).",
+      );
+      console.log(
+        "    Multi-model review will use empty placeholders. Set these in your shell or ~/.claude/settings.json env section.",
+      );
+    } else {
+      console.log("  ✓ consensus-debate env vars found");
+    }
   }
 
   console.log("");
