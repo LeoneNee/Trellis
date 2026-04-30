@@ -3,11 +3,15 @@
 
 > This file contains team-shared development workflow and conventions.
 > Personal preferences belong in `~/.claude/CLAUDE.md`.
+>
+> **WARNING**: `trellis init --all` will overwrite this file. If you have
+> manually added project-specific content below the `<!-- trellis:end -->`
+> marker, back it up before re-running init.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Trellis** (6167 symbols, 9331 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -23,7 +27,7 @@ This project is indexed by GitNexus as **Trellis** (6167 symbols, 9331 relations
 
 1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
 2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/Trellis/process/{processName}` — trace the full execution flow step by step
+3. `READ gitnexus://repo/[YOUR-REPO-NAME]/process/{processName}` — trace the full execution flow step by step
 4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
 ## When Refactoring
@@ -62,10 +66,10 @@ This project is indexed by GitNexus as **Trellis** (6167 symbols, 9331 relations
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/Trellis/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/Trellis/clusters` | All functional areas |
-| `gitnexus://repo/Trellis/processes` | All execution flows |
-| `gitnexus://repo/Trellis/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/[YOUR-REPO-NAME]/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/[YOUR-REPO-NAME]/clusters` | All functional areas |
+| `gitnexus://repo/[YOUR-REPO-NAME]/processes` | All execution flows |
+| `gitnexus://repo/[YOUR-REPO-NAME]/process/{name}` | Step-by-step execution trace |
 
 ## Self-Check Before Finishing
 
@@ -210,9 +214,11 @@ Key commands:
 
 ## Project-Specific Configuration
 
-- **Tech stack**: TypeScript, pnpm monorepo
-- **Test command**: `pnpm test && pnpm build`
-- **Dev server**: `pnpm dev`
-- **Packages**: `packages/cli`, `docs-site`
+> **TODO**: Fill in project-specific details below.
+
+- **Tech stack**: (e.g., TypeScript, React, Node.js)
+- **Test command**: (e.g., `pnpm test && pnpm build`)
+- **Dev server**: (e.g., `pnpm dev`)
+- **Packages**: (e.g., `packages/cli`, `packages/ui`)
 
 <!-- trellis:end -->

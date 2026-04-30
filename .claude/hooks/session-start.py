@@ -14,6 +14,7 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
+from typing import Optional, Set
 
 # IMPORTANT: Force stdout to use UTF-8 on Windows
 # This fixes UnicodeEncodeError when outputting non-ASCII characters
@@ -183,7 +184,7 @@ def _load_trellis_config(trellis_dir: Path) -> tuple:
         return False, {}, None, None, None
 
 
-def _check_legacy_spec(trellis_dir: Path, is_mono: bool, packages: dict) -> str | None:
+def _check_legacy_spec(trellis_dir: Path, is_mono: bool, packages: dict) -> Optional[str]:
     """Check for legacy spec directory structure in monorepo.
 
     Returns warning message if legacy structure detected, None otherwise.
@@ -233,9 +234,9 @@ def _resolve_spec_scope(
     is_mono: bool,
     packages: dict,
     scope,
-    task_pkg: str | None,
-    default_pkg: str | None,
-) -> set | None:
+    task_pkg: Optional[str],
+    default_pkg: Optional[str],
+) -> Optional[Set[str]]:
     """Resolve which packages should have their specs injected.
 
     Returns:

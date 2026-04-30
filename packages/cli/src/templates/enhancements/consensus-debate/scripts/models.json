@@ -2,7 +2,7 @@
   {
     "name": "participant-1",
     "endpoint": "https://your-api-endpoint/v1/chat/completions",
-    "api_key": "your-api-key",
+    "api_key": "",
     "model": "your-model-name",
     "role": "participant",
     "protocol": "openai"
@@ -10,7 +10,7 @@
   {
     "name": "participant-2",
     "endpoint": "https://your-api-endpoint/v1/chat/completions",
-    "api_key": "your-api-key",
+    "api_key": "",
     "model": "another-model-name",
     "role": "participant",
     "protocol": "openai"
@@ -18,7 +18,7 @@
   {
     "name": "judge",
     "endpoint": "https://your-api-endpoint/v1/chat/completions",
-    "api_key": "your-api-key",
+    "api_key": "",
     "model": "your-judge-model",
     "role": "judge",
     "protocol": "openai"

@@ -286,6 +286,7 @@ export async function configureEnhancements(
  * - Copy enhanced agents to .claude/agents/
  * - Overwrite settings.json with full version (includes global hooks)
  * - Overwrite AGENTS.md with full version (includes workflow + routing table)
+ * - Create or update CLAUDE.md with full workflow + routing table (Claude Code reads this)
  */
 async function configureGitnexus(cwd: string): Promise<void> {
   const claudeHooksDir = path.join(cwd, ".claude", "hooks");
@@ -332,6 +333,15 @@ async function configureGitnexus(cwd: string): Promise<void> {
     await writeFile(dest, content);
   }
 
+  // Create or update CLAUDE.md with full workflow + routing table
+  // This ensures team members using Claude Code (not just Codex) get the complete instructions
+  const fullClaudeSource = getEnhancementsDir("gitnexus", "claude.md");
+  if (fs.existsSync(fullClaudeSource)) {
+    const dest = path.join(cwd, "CLAUDE.md");
+    const content = fs.readFileSync(fullClaudeSource, "utf-8");
+    await writeFile(dest, content);
+  }
+
   // Create .claude-approve marker for auto-approve hook
   const approveMarker = path.join(cwd, ".claude-approve");
   if (!fs.existsSync(approveMarker)) {
@@ -367,43 +377,14 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
     }
   }
 
-  // If models.json was copied with template placeholders, add a comment header
+  // If models.json was copied, ensure it has a comment header reminding user to configure
   const modelsPath = path.join(scriptsDir, "models.json");
   if (fs.existsSync(modelsPath)) {
-    let modelsContent = fs.readFileSync(modelsPath, "utf-8");
-    if (modelsContent.includes("{{")) {
-      // Replace template placeholders with a clear example structure
-      modelsContent = JSON.stringify(
-        [
-          {
-            name: "participant-1",
-            endpoint: "https://your-api-endpoint/v1/chat/completions",
-            api_key: "your-api-key",
-            model: "your-model-name",
-            role: "participant",
-            protocol: "openai",
-          },
-          {
-            name: "participant-2",
-            endpoint: "https://your-api-endpoint/v1/chat/completions",
-            api_key: "your-api-key",
-            model: "another-model-name",
-            role: "participant",
-            protocol: "openai",
-          },
-          {
-            name: "judge",
-            endpoint: "https://your-api-endpoint/v1/chat/completions",
-            api_key: "your-api-key",
-            model: "your-judge-model",
-            role: "judge",
-            protocol: "openai",
-          },
-        ],
-        null,
-        2,
-      );
-      fs.writeFileSync(modelsPath, modelsContent, "utf-8");
+    const modelsContent = fs.readFileSync(modelsPath, "utf-8");
+    if (!modelsContent.includes("⚠️") && !modelsContent.includes("REQUIRED")) {
+      const header =
+        "// ⚠️ REQUIRED: Fill in your own API keys and model names before use\n// See: .claude/skills/consensus-debate/scripts/models.json\n";
+      fs.writeFileSync(modelsPath, header + modelsContent, "utf-8");
     }
   }
 
