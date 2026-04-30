@@ -209,6 +209,27 @@ def output_json(repo_root: Path | None = None) -> None:
 # Text Output
 # =============================================================================
 
+def _get_or_init_developer(repo_root: Path) -> tuple[str | None, str | None]:
+    """Get developer name, auto-initializing from git config if needed.
+
+    Returns:
+        (developer_name, warning_message) — warning is None if no issue.
+    """
+    developer = get_developer(repo_root)
+    if developer:
+        return developer, None
+
+    _, git_name_out, _ = run_git(["config", "user.name"], cwd=repo_root)
+    git_name = git_name_out.strip()
+    if git_name:
+        from .developer import init_developer
+        if init_developer(git_name, repo_root):
+            return git_name, f"WARNING: Auto-initialized developer from git user.name: {git_name}"
+
+    command = f"python3 ./{DIR_WORKFLOW}/{DIR_SCRIPTS}/init_developer.py <name>"
+    return None, f"WARNING: Developer not initialized. Run: {command}"
+
+
 def get_context_text(repo_root: Path | None = None) -> str:
     """Get context as formatted text.
 
@@ -227,14 +248,14 @@ def get_context_text(repo_root: Path | None = None) -> str:
     lines.append("========================================")
     lines.append("")
 
-    developer = get_developer(repo_root)
+    developer, developer_warning = _get_or_init_developer(repo_root)
 
     # Developer section
     lines.append("## DEVELOPER")
+    if developer_warning:
+        lines.append(developer_warning)
     if not developer:
-        lines.append(
-            f"ERROR: Not initialized. Run: python3 ./{DIR_WORKFLOW}/{DIR_SCRIPTS}/init_developer.py <name>"
-        )
+        lines.append("")
         return "\n".join(lines)
 
     lines.append(f"Name: {developer}")
@@ -473,11 +494,10 @@ def get_context_text_record(repo_root: Path | None = None) -> str:
     lines.append("========================================")
     lines.append("")
 
-    developer = get_developer(repo_root)
+    developer, developer_warning = _get_or_init_developer(repo_root)
+    if developer_warning:
+        lines.append(developer_warning)
     if not developer:
-        lines.append(
-            f"ERROR: Not initialized. Run: python3 ./{DIR_WORKFLOW}/{DIR_SCRIPTS}/init_developer.py <name>"
-        )
         return "\n".join(lines)
 
     # MY ACTIVE TASKS — first and prominent

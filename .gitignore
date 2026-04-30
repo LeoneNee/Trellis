@@ -179,5 +179,6 @@ doc/
 smoke_test/
 
 # Claude Code scheduled tasks session lock
+.claude/settings.json
 .claude/scheduled_tasks.lock
 .gitnexus

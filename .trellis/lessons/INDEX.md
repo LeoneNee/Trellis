@@ -15,6 +15,7 @@
 | 001 | Project-level CLAUDE.md must include workflow + routing | #config #team | 2026-04-30 |
 | 002 | enhancements.ts configureGitnexus should update both AGENTS.md and CLAUDE.md | #trellis #config | 2026-04-30 |
 | 003 | Eliminate duplicate agents directories to avoid confusion | #trellis #config | 2026-04-30 |
+| 004 | Session context auto-initialization from git user.name | #config #onboarding | 2026-04-30 |
 
 ---
 
