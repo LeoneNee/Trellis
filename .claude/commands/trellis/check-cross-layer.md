@@ -1,3 +1,7 @@
+---
+description: Cross-layer validation check after implementation
+allowed-tools: "Skill, Read, Bash, Glob, Grep"
+---
 # Cross-Layer Check
 
 Check if your changes considered all dimensions. Most bugs come from "didn't think of it", not lack of technical skill.

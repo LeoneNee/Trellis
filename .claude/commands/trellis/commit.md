@@ -1,3 +1,7 @@
+---
+description: Generate conventional commits with user confirmation
+allowed-tools: "Skill, Read, Bash"
+---
 # Commit Changes
 
 Generate and execute a Conventional Commits compliant commit.

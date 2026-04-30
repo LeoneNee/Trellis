@@ -1,3 +1,7 @@
+---
+description: Integrate a Claude skill into project guidelines
+allowed-tools: "Skill, Read, Write, Edit, Bash, Glob, Grep"
+---
 # Integrate Claude Skill into Project Guidelines
 
 Adapt and integrate a Claude global skill into your project's development guidelines (not directly into project code).

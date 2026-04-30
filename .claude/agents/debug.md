@@ -39,8 +39,8 @@ Parse the issue, categorize by priority:
 If you need additional info:
 
 ```bash
-# Check knowledge base
-ls .trellis/big-question/
+# Check project specs and context
+ls .trellis/spec/
 ```
 
 ### Step 3: Fix One by One

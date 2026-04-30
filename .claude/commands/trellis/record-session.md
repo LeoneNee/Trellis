@@ -1,3 +1,7 @@
+---
+description: Save session checkpoint and record work progress
+allowed-tools: "Skill, Read, Bash, Glob, Grep"
+---
 [!] **Prerequisite**: This command should only be used AFTER the human has tested and committed the code.
 
 **AI must NOT execute git commit** - only read history (`git log`, `git status`, `git diff`).

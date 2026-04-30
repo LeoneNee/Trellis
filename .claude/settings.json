@@ -38,6 +38,33 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Grep|Glob|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gitnexus-hook.cjs",
+            "timeout": 10,
+            "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/auto-approve-hook.cjs",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/harness-hook.cjs",
+            "timeout": 5,
+            "statusMessage": "Checking harness knowledge base..."
+          }
+        ]
+      },
+      {
         "matcher": "Task",
         "hooks": [
           {
@@ -56,6 +83,76 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/commit-review.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gitnexus-hook.cjs",
+            "timeout": 10,
+            "statusMessage": "Checking GitNexus index freshness..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*docs/superpowers/plans/*.md)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && rm -f /tmp/claude_plan_review_done_$SESSION_ID && if [ ! -f /tmp/claude_plan_intent_$SESSION_ID ]; then touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/auto-approve-hook.cjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/lesson-search.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_USER_INPUT\" | grep -qiE '(制定|做|完成|写|生成).*(计划|方案|规划)|plan.*(finish|complete|done)|(finish|complete).*plan'; then SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /consensus-debate for multi-model review.'; fi"
+          }
+        ]
       }
     ],
     "SubagentStop": [
@@ -65,6 +162,16 @@
           {
             "type": "command",
             "command": "python3 .claude/hooks/ralph-loop.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/lesson-capture.py",
             "timeout": 10
           }
         ]

@@ -1,3 +1,7 @@
+---
+description: Pre-commit checklist for code quality and completeness
+allowed-tools: "Skill, Read, Bash, Glob, Grep, Write, Edit"
+---
 # Finish Work - Pre-Commit Checklist
 
 Before submitting or committing, use this checklist to ensure work completeness.

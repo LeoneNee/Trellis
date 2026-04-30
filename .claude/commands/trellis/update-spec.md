@@ -1,3 +1,7 @@
+---
+description: Update code-spec documents with executable contracts
+allowed-tools: "Skill, Read, Write, Edit, Bash, Glob, Grep"
+---
 # Update Code-Spec - Capture Executable Contracts
 
 When you learn something valuable (from debugging, implementing, or discussion), use this command to update the relevant code-spec documents.

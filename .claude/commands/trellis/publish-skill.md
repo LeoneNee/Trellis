@@ -1,3 +1,7 @@
+---
+description: Publish a marketplace skill to the docs site
+allowed-tools: "Skill, Read, Write, Edit, Bash, Glob, Grep"
+---
 # Publish Skill to Docs Site
 
 Sync a marketplace skill to the documentation site. Creates skill detail pages (EN/ZH), updates the marketplace index, and updates docs.json navigation.

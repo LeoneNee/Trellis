@@ -111,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION_ID=${CLAUDE_SESSION_ID:-default} && rm -f /tmp/claude_plan_review_done_$SESSION_ID && if [ ! -f /tmp/claude_plan_intent_$SESSION_ID ]; then touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && rm -f /tmp/claude_plan_review_done_$SESSION_ID && if [ ! -f /tmp/claude_plan_intent_$SESSION_ID ]; then touch /tmp/claude_plan_intent_$SESSION_ID; fi"
           }
         ]
       }
@@ -139,7 +139,7 @@
           },
           {
             "type": "command",
-            "command": "if echo \"$CLAUDE_USER_INPUT\" | grep -qiE '(制定|做|完成|写|生成).*(计划|方案|规划)|plan.*(finish|complete|done)|(finish|complete).*plan'; then SESSION_ID=${CLAUDE_SESSION_ID:-default} && touch /tmp/claude_plan_intent_$SESSION_ID; fi"
+            "command": "if echo \"$CLAUDE_USER_INPUT\" | grep -qiE '(制定|做|完成|写|生成).*(计划|方案|规划)|plan.*(finish|complete|done)|(finish|complete).*plan'; then SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && touch /tmp/claude_plan_intent_$SESSION_ID; fi"
           }
         ]
       }
@@ -149,7 +149,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION_ID=${CLAUDE_SESSION_ID:-default} && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /consensus-debate for multi-model review.'; fi"
+            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /consensus-debate for multi-model review.'; fi"
           }
         ]
       }

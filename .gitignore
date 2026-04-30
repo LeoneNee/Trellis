@@ -182,3 +182,9 @@ smoke_test/
 .claude/settings.json
 .claude/scheduled_tasks.lock
 .gitnexus
+
+# Security - auto-approve marker (opt-in only)
+.claude-approve
+
+# API keys - consensus-debate model config
+.claude/skills/consensus-debate/scripts/models.json

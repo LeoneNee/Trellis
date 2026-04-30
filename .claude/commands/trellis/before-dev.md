@@ -1,3 +1,8 @@
+---
+description: Read development guidelines before starting a task
+allowed-tools: "Skill, Read, Glob, Grep, Bash"
+---
+
 Read the relevant development guidelines before starting your task.
 
 Execute these steps:

@@ -1,3 +1,8 @@
+---
+description: Verify code follows project development guidelines
+allowed-tools: "Skill, Read, Bash, Glob, Grep"
+---
+
 Check if the code you just wrote follows the development guidelines.
 
 Execute these steps:

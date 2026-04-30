@@ -1,3 +1,8 @@
+---
+description: Create a migration manifest for a new release
+allowed-tools: "Skill, Read, Write, Bash, Glob, Grep"
+---
+
 # Create Migration Manifest
 
 Create a migration manifest for a new patch/minor release based on commits since the last release.

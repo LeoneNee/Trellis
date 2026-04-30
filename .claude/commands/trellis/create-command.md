@@ -1,3 +1,8 @@
+---
+description: Create a new slash command for the project
+allowed-tools: "Skill, Read, Write, Glob, Grep"
+---
+
 # Create New Slash Command
 
 Create a new slash command in both `.cursor/commands/` (with `trellis-` prefix) and `.claude/commands/trellis/` directories based on user requirements.

@@ -1,3 +1,7 @@
+---
+description: Improve unit test coverage after code changes
+allowed-tools: "Skill, Read, Write, Edit, Bash, Glob, Grep"
+---
 # Improve Unit Tests (UT)
 
 Use this command to improve test coverage after code changes.

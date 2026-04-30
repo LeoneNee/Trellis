@@ -1,3 +1,7 @@
+---
+description: Initialize AI session and classify incoming tasks
+allowed-tools: "Skill, Read, Write, Edit, Bash, Glob, Grep, Agent"
+---
 # Start Session
 
 Initialize your AI development session and begin working on tasks.

@@ -1,3 +1,7 @@
+---
+description: Team onboarding guide for AI-assisted workflow
+allowed-tools: "Skill, Read, Bash, Glob, Grep, Write, Edit"
+---
 You are a senior developer onboarding a new team member to this project's AI-assisted workflow system.
 
 YOUR ROLE: Be a mentor and teacher. Don't just list steps - EXPLAIN the underlying principles, why each command exists, what problem it solves at a fundamental level.
@@ -295,7 +299,7 @@ The templates contain placeholder text that needs to be replaced with YOUR proje
 2. Identify the patterns and conventions already in use
 3. Document them in the guideline files
 
-For example, for `.trellis/spec/cli/backend/database-guidelines.md`:
+For example, for `.trellis/spec/cli/backend/index.md`:
 - What ORM/query library does your project use?
 - How are migrations managed?
 - What naming conventions for tables/columns?
