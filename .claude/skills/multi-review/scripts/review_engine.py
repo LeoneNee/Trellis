@@ -86,7 +86,7 @@ def _validate_flags(flags: list) -> list:
     """Filter out flags that could enable arbitrary command execution."""
     safe = []
     for f in flags:
-        if f in _DANGEROUS_FLAGS:
+        if f.split('=')[0] in _DANGEROUS_FLAGS:
             print(f"[engine] WARN: rejecting dangerous flag: {f}", file=sys.stderr)
             continue
         safe.append(f)

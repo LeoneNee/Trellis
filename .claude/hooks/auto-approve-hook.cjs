@@ -87,7 +87,7 @@ const PERMISSION_TOOLS = new Set([
  */
 const DANGEROUS_PATTERNS = [
   // rm variants (including encoding bypasses)
-  /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$)/,
+  /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$|\.\/)/,
   /rm\s+-r\s+([\/~]|\.\s*$)/, // rm -r without -f on absolute/relative paths
   /\$'[^']*\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[0-7]{3})/, // $'\x72' / $'r' / $'\162' encoding bypass
   /\$\{[!#][a-zA-Z_]*\}/, // indirect/reference variables: ${!var}, ${#var}
@@ -100,7 +100,7 @@ const DANGEROUS_PATTERNS = [
   /curl.*\|\s*(sh|bash)/,
   /wget.*\|\s*(sh|bash)/,
   /chmod\s+777/,
-  /git\s+push\s+.*--force/,
+  /git\s+push\s+.*(?<!-with-lease)(?<!-if-includes)\s--force(?:\s|$)/,
   /dd\s+if=/,
   // redirect to sensitive paths
   />\s*\/etc\//,

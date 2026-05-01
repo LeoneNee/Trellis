@@ -299,8 +299,14 @@ function handlePostToolUse(input) {
   }
 
   // Clean up lock when child exits (may not fire in detached mode)
+  // Only remove if PID matches to avoid deleting another process's lock
   child.on('exit', () => {
-    try { fs.unlinkSync(lockFile); } catch {}
+    try {
+      const content = fs.readFileSync(lockFile, 'utf-8').trim();
+      if (content.startsWith(`${child.pid}:`)) {
+        fs.unlinkSync(lockFile);
+      }
+    } catch {}
   });
 
   // Notify agent that reindex is running in background

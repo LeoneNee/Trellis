@@ -312,6 +312,8 @@ def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Op
         filename = f"{date_str}-{slug}-{counter}.md"
         filepath = lessons_dir / filename
         counter += 1
+    if filepath.exists():
+        return None  # Too many lessons with this slug today
 
     # 提取结构化字段
     module = content.get("module", "unspecified")
