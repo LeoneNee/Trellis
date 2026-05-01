@@ -88,9 +88,12 @@ const PERMISSION_TOOLS = new Set([
 const DANGEROUS_PATTERNS = [
   // rm variants (including encoding bypasses)
   /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$)/,
-  /\$'[^']*\\x[0-9a-fA-F]{2}/, // $'\x72\x6d' encoding bypass
-  /\$\{[a-zA-Z_]+\}/, // variable indirection: ${cmd}
+  /rm\s+-r\s+([\/~]|\.\s*$)/, // rm -r without -f on absolute/relative paths
+  /\$'[^']*\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[0-7]{3})/, // $'\x72' / $'r' / $'\162' encoding bypass
+  /\$\{[!#][a-zA-Z_]*\}/, // indirect/reference variables: ${!var}, ${#var}
+  /\$\{(BASH_COMMAND|SHELLOPTS|BASH_SUBSHELL|IFS|FUNCNAME|OLDPWD)\b[^}]*\}/, // dangerous shell variables
   /:\s*>?\s*\/dev\/null/,
+  // pipe to shell
   /\|\s*(\/?(usr\/)?bin\/)?(sh|bash|zsh|fish)\b(\s+-c|\s+--)?/,
   /eval\s+\$/,
   /\$\(.*\)\s*\|\s*(sh|bash)/,
@@ -99,17 +102,27 @@ const DANGEROUS_PATTERNS = [
   /chmod\s+777/,
   /git\s+push\s+.*--force/,
   /dd\s+if=/,
+  // redirect to sensitive paths
   />\s*\/etc\//,
   />\s*~\/\.ssh\//,
+  // backtick command substitution with special chars
   /`[^`]*[\s|;&$><][^`]*`/,
-  /\$\([^)]*\b(rm|dd|mkfs|chmod|chown|mv|cat)\b/,
+  // $() subshell with dangerous commands (handles nested parens via .* greedy)
+  /\$\(.*\b(rm|dd|mkfs|chmod|chown|mv|cat|sh|bash)\b/,
+  // interpreter -e/-c flag (code execution)
   /\b(node|python|python3|perl|ruby)\s+(-e|-c)\s/,
   /base64\s+-d\s*\|.*\b(sh|bash)/,
-  /<<\s*['"]?[A-Za-z_]{2,}/, // heredoc — match lowercase too
+  // heredoc — single-char and longer delimiters
+  /<<\s*['"]?[A-Za-z_]{1,}/,
+  // privilege escalation
   /\bsudo\s+.*\b(rm|dd|mkfs|chmod|chown)\b/,
   /\bxargs\s+.*(sh|bash|rm|chmod|chown)\b/,
   /\bfind\b.*-exec\s+/,
   /\bawk\s+.*\b(system|exec)\s*\(/,
+  // source / dot operator executing scripts (allows quoted paths)
+  /(?:^|&&|\|\||;|`)\s*(?:source|\.)\s+["']?[~/\$][^\s;|&"']*/, // source / dot operator
+  /(?:^|&&|\|\||;|`)\s*exec\s+/, // exec replacing process
+  /\btee\s+.*(~\/\.|\/etc\/|\/\.ssh\/)/, // tee writing to sensitive paths
 ];
 
 /**
@@ -117,6 +130,7 @@ const DANGEROUS_PATTERNS = [
  */
 const SENSITIVE_PATHS = [
   /\/\.ssh\//,
+  /\/id_(rsa|ed25519|ecdsa|dsa)$/,
   /\/\.bashrc$/,
   /\/\.zshrc$/,
   /\/\.profile$/,
@@ -125,11 +139,18 @@ const SENSITIVE_PATHS = [
   /^\/etc\//,
   /\/\.gnupg\//,
   /\/\.config\/gh\/hosts\.yml$/,
+  /\/\.env$/,
+  /\/\.env\./,
+  /\/credentials$/,
+  /\/secrets?\//,
+  /\/\.aws\//,
+  /\/\.npmrc$/,
 ];
 
 function isSensitivePath(filePath) {
   if (!filePath) return false;
-  const resolved = filePath.replace(/^~/, process.env.HOME || '');
+  const expanded = filePath.replace(/^~/, process.env.HOME || '');
+  const resolved = path.resolve(expanded);
   for (const pattern of SENSITIVE_PATHS) {
     if (pattern.test(resolved)) return true;
   }
@@ -161,6 +182,7 @@ function handlePermissionRequest(input) {
 
   // Never auto-approve dangerous commands
   if (isDangerous(command)) {
+    auditLog(projectRoot, { event: 'deny', tool: toolName, reason: 'dangerous_command', cmd: command.slice(0, 200) });
     sendDeny('Dangerous command detected. Manual review required.');
     return;
   }
@@ -169,6 +191,7 @@ function handlePermissionRequest(input) {
   if (!PERMISSION_TOOLS.has(toolName)) return;
 
   // Auto-approve!
+  auditLog(projectRoot, { event: 'allow', tool: toolName, via: 'PermissionRequest' });
   sendAllow();
 }
 
@@ -183,17 +206,24 @@ function handlePreToolUse(input) {
   const toolInput = input.tool_input || {};
   const command = toolInput.command || '';
 
-  // Never auto-approve dangerous commands
-  if (isDangerous(command)) return;
+  // Never auto-approve dangerous commands (applies to all tools, especially Bash)
+  // Note: Bash danger checks also run in handlePermissionRequest (which covers the Bash tool specifically)
+  if (isDangerous(command)) {
+    auditLog(projectRoot, { event: 'deny', tool: toolName, reason: 'dangerous_command', cmd: command.slice(0, 200) });
+    return;
+  }
 
-  // Only auto-approve Edit/Write/Patch for now (most common)
+  // Only auto-approve Edit/Write/Patch file modifications
   if (toolName !== 'Edit' && toolName !== 'Write' && toolName !== 'Patch') return;
 
-  // Check for sensitive file paths
   const filePath = toolInput.file_path || toolInput.path || '';
-  if (isSensitivePath(filePath)) return;
+  if (isSensitivePath(filePath)) {
+    auditLog(projectRoot, { event: 'deny', tool: toolName, reason: 'sensitive_path', path: filePath.slice(0, 200) });
+    return;
+  }
 
-  // Auto-approve file modifications
+  // Auto-approve safe file modifications
+  auditLog(projectRoot, { event: 'allow', tool: toolName, file: filePath.slice(0, 200), via: 'PreToolUse' });
   sendAllowDecision();
 }
 
@@ -235,6 +265,30 @@ function sendDeny(reason) {
       },
     }),
   );
+}
+
+/**
+ * Append audit entry to .claude/auto-approve-audit.jsonl
+ */
+function auditLog(projectRoot, entry) {
+  if (!projectRoot) return;
+  try {
+    const logFile = path.join(projectRoot, '.claude', 'auto-approve-audit.jsonl');
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) return;
+    // Rotate if over 5MB
+    try {
+      const stat = fs.statSync(logFile);
+      if (stat.size > 5_000_000) {
+        fs.renameSync(logFile, logFile + '.1');
+      }
+    } catch { /* file may not exist yet */ }
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      ...entry,
+    }) + '\n';
+    fs.appendFileSync(logFile, line, { flag: 'a' });
+  } catch { /* audit logging is best-effort */ }
 }
 
 function main() {

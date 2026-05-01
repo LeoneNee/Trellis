@@ -191,3 +191,5 @@ smoke_test/
 
 # Multi-review local config (contains user-specific CLI paths)
 .claude/skills/multi-review/scripts/config.json
+.claude/auto-approve-audit.jsonl
+.claude/auto-approve-audit.jsonl.*

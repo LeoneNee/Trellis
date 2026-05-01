@@ -20,22 +20,22 @@ ENGINE_SCRIPT = SKILL_DIR / "review_engine.py"
 CONFIG_FILE = SKILL_DIR / "config.json"
 
 
-def check_prerequisites() -> bool:
+def check_prerequisites() -> None:
     if not CONFIG_FILE.exists():
         # No config at all — engine will try Claude CLI fallback
         print("[review-wrapper] No config.json, will try Claude CLI fallback", file=sys.stderr)
-        return True
+        return
 
     try:
         config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        print("[review-wrapper] SKIP: config.json is invalid JSON", file=sys.stderr)
-        return False
+        print("[review-wrapper] ERROR: config.json is invalid JSON — failing safe (blocking commit)", file=sys.stderr)
+        sys.exit(2)
 
     enabled = [r for r in config.get("reviewers", []) if r.get("enabled", True)]
     if not enabled:
         print("[review-wrapper] No reviewers enabled, will try Claude CLI fallback", file=sys.stderr)
-        return True
+        return
 
     available = []
     for r in enabled:
@@ -45,9 +45,7 @@ def check_prerequisites() -> bool:
 
     if not available:
         print("[review-wrapper] Config reviewers not found on disk, will try Claude CLI fallback", file=sys.stderr)
-        return True
-
-    return True
+        return
 
 
 def run_review(diff_content: str, message: str = "") -> dict:
@@ -118,8 +116,7 @@ def main():
     if message:
         print(f"[review-wrapper] Commit: {message[:80]}", file=sys.stderr)
 
-    if not check_prerequisites():
-        sys.exit(0)
+    check_prerequisites()
 
     try:
         result = run_review(diff_content, message=message)

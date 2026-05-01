@@ -254,9 +254,6 @@ function handlePostToolUse(input) {
   try {
     if (fs.existsSync(lockFile)) {
       const content = fs.readFileSync(lockFile, 'utf-8').trim();
-      if (content === 'pending') {
-        return; // Another process is starting reindex, skip
-      }
       // Parse "PID:timestamp" format
       const parts = content.split(':');
       const pid = parseInt(parts[0], 10);
@@ -282,7 +279,8 @@ function handlePostToolUse(input) {
 
   // Use exclusive create to prevent race condition
   try {
-    fs.writeFileSync(lockFile, 'pending', { flag: 'wx' });
+    // Write current PID + timestamp before spawn so crash recovery works
+    fs.writeFileSync(lockFile, `${process.pid}:${Date.now()}`, { flag: 'wx' });
   } catch {
     return; // Another process won the race
   }
@@ -295,9 +293,10 @@ function handlePostToolUse(input) {
   });
   child.unref();
 
-  // Write actual child PID + timestamp for expiry
-  const lockData = `${child.pid}:${Date.now()}`;
-  try { fs.writeFileSync(lockFile, lockData); } catch {}
+  // Update lock with child PID for accurate tracking
+  if (child.pid) {
+    try { fs.writeFileSync(lockFile, `${child.pid}:${Date.now()}`); } catch {}
+  }
 
   // Clean up lock when child exits (may not fire in detached mode)
   child.on('exit', () => {

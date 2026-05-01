@@ -9,6 +9,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const os = require('os');
 
 function readInput() {
   try {
@@ -55,7 +57,7 @@ function findProjectRoot(startDir) {
 }
 
 function getRelativePath(targetPath) {
-  const home = require('os').homedir();
+  const home = os.homedir();
   if (targetPath.startsWith(home)) {
     return targetPath.replace(home, '~');
   }
@@ -349,9 +351,8 @@ function handlePreToolUse(input) {
 
   const rawSessionId = process.env.CLAUDE_SESSION_ID || '';
   const SESSION_ID = /^[a-zA-Z0-9_-]+$/.test(rawSessionId) ? rawSessionId : '';
-  const crypto = require('crypto');
   const guardSuffix = SESSION_ID || crypto.createHash('sha256').update(cwd).digest('hex').slice(0, 12);
-  const guardFile = path.join(require('os').tmpdir(), `claude_lessons_hook_${guardSuffix}`);
+  const guardFile = path.join(os.tmpdir(), `claude_lessons_hook_${guardSuffix}`);
   if (fs.existsSync(guardFile)) {
     try {
       const mtime = fs.statSync(guardFile).mtimeMs;

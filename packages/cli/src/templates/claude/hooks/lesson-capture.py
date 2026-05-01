@@ -264,6 +264,21 @@ def should_create_lesson(repo_root: str, content: dict) -> bool:
     return False
 
 
+def _has_duplicate_lesson(lessons_dir: Path, date_str: str, files: list[str]) -> bool:
+    """Check if a lesson with the same primary file already exists today."""
+    if not files:
+        return False
+    primary = files[0]
+    for md_file in lessons_dir.glob(f"{date_str}-*.md"):
+        try:
+            text = md_file.read_text(encoding="utf-8")
+            if f"  - {primary}" in text:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Optional[str]:
     """写入标准模板格式的 lesson 文件"""
     if not is_fix or not should_create_lesson(repo_root, content):
@@ -271,6 +286,11 @@ def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Op
 
     lessons_dir = Path(repo_root) / LESSONS_DIR
     lessons_dir.mkdir(parents=True, exist_ok=True)
+
+    # Dedup: skip if a lesson with the same files already exists today
+    files = content.get("files", [])
+    if files and _has_duplicate_lesson(lessons_dir, datetime.now().strftime("%Y-%m-%d"), files):
+        return None
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
@@ -286,9 +306,9 @@ def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Op
     filename = f"{date_str}-{slug}.md"
     filepath = lessons_dir / filename
 
-    # 如果文件已存在，加序号
+    # 如果文件已存在，加序号（上限 100 防止无限循环）
     counter = 1
-    while filepath.exists():
+    while filepath.exists() and counter <= 100:
         filename = f"{date_str}-{slug}-{counter}.md"
         filepath = lessons_dir / filename
         counter += 1

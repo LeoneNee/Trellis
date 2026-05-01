@@ -131,47 +131,27 @@ def build_review_prompt(diff_content: str, focus: str = "all", message: str = ""
     return REVIEW_PROMPT_TEMPLATE.format(diff=diff_content[:MAX_DIFF_SIZE], focus=focus, message_context=msg_ctx)
 
 
+def _run_subprocess(cmd: list, timeout: int, cwd: str, reviewer_name: str) -> dict:
+    """Execute a subprocess and return structured result."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        return {"reviewer": reviewer_name, "raw_output": result.stdout + result.stderr, "timed_out": False, "error": ""}
+    except subprocess.TimeoutExpired:
+        return {"reviewer": reviewer_name, "raw_output": "", "timed_out": True, "error": "timeout"}
+    except Exception as e:
+        return {"reviewer": reviewer_name, "raw_output": "", "timed_out": False, "error": str(e)}
+
+
 def run_reviewer(reviewer: ReviewerConfig, prompt: str, cwd: str) -> dict:
     cmd = [reviewer.cli_path]
     if reviewer.subcommand:
         cmd.append(reviewer.subcommand)
     cmd.extend(reviewer.flags)
 
-    is_claude = reviewer.name == "claude"
-
-    if is_claude:
-        # Claude CLI: pass prompt as the -p argument (last positional arg after flags)
-        # Truncate to 200KB to stay well under ARG_MAX
-        truncated = prompt[:200_000]
-        cmd.append(truncated)
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=reviewer.timeout_seconds,
-                cwd=cwd,
-            )
-            return {
-                "reviewer": reviewer.name,
-                "raw_output": result.stdout + result.stderr,
-                "timed_out": False,
-                "error": "",
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                "reviewer": reviewer.name,
-                "raw_output": "",
-                "timed_out": True,
-                "error": "timeout",
-            }
-        except Exception as e:
-            return {
-                "reviewer": reviewer.name,
-                "raw_output": "",
-                "timed_out": False,
-                "error": str(e),
-            }
+    if reviewer.name == "claude":
+        # Claude CLI: pass prompt as positional arg (truncated to 200KB for ARG_MAX)
+        cmd.append(prompt[:200_000])
+        return _run_subprocess(cmd, reviewer.timeout_seconds, cwd, reviewer.name)
     else:
         # External CLIs: use temp file to avoid E2BIG
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, prefix="review-prompt-")
@@ -179,34 +159,7 @@ def run_reviewer(reviewer: ReviewerConfig, prompt: str, cwd: str) -> dict:
             tmp.write(prompt)
             tmp.close()
             cmd.append(f"@{tmp.name}")
-            try:
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=reviewer.timeout_seconds,
-                    cwd=cwd,
-                )
-                return {
-                    "reviewer": reviewer.name,
-                    "raw_output": result.stdout + result.stderr,
-                    "timed_out": False,
-                    "error": "",
-                }
-            except subprocess.TimeoutExpired:
-                return {
-                    "reviewer": reviewer.name,
-                    "raw_output": "",
-                    "timed_out": True,
-                    "error": "timeout",
-                }
-            except Exception as e:
-                return {
-                    "reviewer": reviewer.name,
-                    "raw_output": "",
-                    "timed_out": False,
-                    "error": str(e),
-                }
+            return _run_subprocess(cmd, reviewer.timeout_seconds, cwd, reviewer.name)
         finally:
             try:
                 os.unlink(tmp.name)
@@ -277,6 +230,15 @@ def merge_reviews(
     return {"confirmed_issues": confirmed, "unverified_issues": unverified}
 
 
+def _is_path_under(child: Path, parent: Path) -> bool:
+    """Check if `child` is safely under `parent` (path containment)."""
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Multi-Agent Review Engine")
     parser.add_argument("--diff", required=True, help="Diff content or @file path")
@@ -290,13 +252,19 @@ def main():
     if args.diff.startswith("@"):
         diff_path = Path(args.diff[1:]).resolve()
         # Validate path is under cwd or /tmp to prevent path traversal
-        allowed_prefixes = [Path.cwd().resolve(), Path("/tmp"), Path(tempfile.gettempdir())]
-        if not any(str(diff_path).startswith(str(p)) for p in allowed_prefixes):
+        allowed_dirs = [Path.cwd().resolve(), Path("/tmp").resolve(), Path(tempfile.gettempdir()).resolve()]
+        if not any(_is_path_under(diff_path, d) for d in allowed_dirs):
             print(f"[engine] ERROR: diff file path outside allowed directories: {diff_path}", file=sys.stderr)
             sys.exit(2)
         diff_content = diff_path.read_text(encoding="utf-8") if diff_path.exists() else ""
     elif Path(args.diff).exists() and "\n" not in args.diff:
-        diff_content = Path(args.diff).read_text(encoding="utf-8")
+        file_path = Path(args.diff).resolve()
+        allowed_dirs = [Path.cwd().resolve(), Path("/tmp").resolve(), Path(tempfile.gettempdir()).resolve()]
+        if any(_is_path_under(file_path, d) for d in allowed_dirs):
+            diff_content = file_path.read_text(encoding="utf-8")
+        else:
+            print(f"[engine] ERROR: diff file path outside allowed directories: {file_path}", file=sys.stderr)
+            sys.exit(2)
     else:
         diff_content = args.diff
 
