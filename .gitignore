@@ -188,3 +188,6 @@ smoke_test/
 
 # API keys - consensus-debate model config
 .claude/skills/consensus-debate/scripts/models.json
+
+# Multi-review local config (contains user-specific CLI paths)
+.claude/skills/multi-review/scripts/config.json

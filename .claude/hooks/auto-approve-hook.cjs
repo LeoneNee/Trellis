@@ -86,7 +86,10 @@ const PERMISSION_TOOLS = new Set([
  * Dangerous patterns that should NEVER be auto-approved.
  */
 const DANGEROUS_PATTERNS = [
+  // rm variants (including encoding bypasses)
   /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$)/,
+  /\$'[^']*\\x[0-9a-fA-F]{2}/, // $'\x72\x6d' encoding bypass
+  /\$\{[a-zA-Z_]+\}/, // variable indirection: ${cmd}
   /:\s*>?\s*\/dev\/null/,
   /\|\s*(\/?(usr\/)?bin\/)?(sh|bash|zsh|fish)\b(\s+-c|\s+--)?/,
   /eval\s+\$/,
@@ -102,12 +105,36 @@ const DANGEROUS_PATTERNS = [
   /\$\([^)]*\b(rm|dd|mkfs|chmod|chown|mv|cat)\b/,
   /\b(node|python|python3|perl|ruby)\s+(-e|-c)\s/,
   /base64\s+-d\s*\|.*\b(sh|bash)/,
-  /<<\s*['"]?[A-Z_]{2,}/,
+  /<<\s*['"]?[A-Za-z_]{2,}/, // heredoc — match lowercase too
   /\bsudo\s+.*\b(rm|dd|mkfs|chmod|chown)\b/,
   /\bxargs\s+.*(sh|bash|rm|chmod|chown)\b/,
   /\bfind\b.*-exec\s+/,
   /\bawk\s+.*\b(system|exec)\s*\(/,
 ];
+
+/**
+ * Sensitive file paths that should never be written via Edit/Write/Patch.
+ */
+const SENSITIVE_PATHS = [
+  /\/\.ssh\//,
+  /\/\.bashrc$/,
+  /\/\.zshrc$/,
+  /\/\.profile$/,
+  /\/\.bash_profile$/,
+  /\/\.gitconfig$/,
+  /^\/etc\//,
+  /\/\.gnupg\//,
+  /\/\.config\/gh\/hosts\.yml$/,
+];
+
+function isSensitivePath(filePath) {
+  if (!filePath) return false;
+  const resolved = filePath.replace(/^~/, process.env.HOME || '');
+  for (const pattern of SENSITIVE_PATHS) {
+    if (pattern.test(resolved)) return true;
+  }
+  return false;
+}
 
 function isDangerous(command) {
   for (const pattern of DANGEROUS_PATTERNS) {
@@ -142,7 +169,7 @@ function handlePermissionRequest(input) {
   if (!PERMISSION_TOOLS.has(toolName)) return;
 
   // Auto-approve!
-  sendAllow(projectRoot);
+  sendAllow();
 }
 
 function handlePreToolUse(input) {
@@ -162,11 +189,15 @@ function handlePreToolUse(input) {
   // Only auto-approve Edit/Write/Patch for now (most common)
   if (toolName !== 'Edit' && toolName !== 'Write' && toolName !== 'Patch') return;
 
+  // Check for sensitive file paths
+  const filePath = toolInput.file_path || toolInput.path || '';
+  if (isSensitivePath(filePath)) return;
+
   // Auto-approve file modifications
-  sendAllowDecision(projectRoot);
+  sendAllowDecision();
 }
 
-function sendAllow(projectRoot) {
+function sendAllow() {
   console.log(
     JSON.stringify({
       hookSpecificOutput: {
@@ -179,7 +210,7 @@ function sendAllow(projectRoot) {
   );
 }
 
-function sendAllowDecision(projectRoot) {
+function sendAllowDecision() {
   console.log(
     JSON.stringify({
       hookSpecificOutput: {

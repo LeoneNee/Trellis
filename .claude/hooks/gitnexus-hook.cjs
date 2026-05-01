@@ -250,14 +250,23 @@ function handlePostToolUse(input) {
 
   // Check for existing reindex process
   const lockFile = path.join(gitNexusDir, '.reindex.lock');
+  const LOCK_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
   try {
     if (fs.existsSync(lockFile)) {
       const content = fs.readFileSync(lockFile, 'utf-8').trim();
       if (content === 'pending') {
         return; // Another process is starting reindex, skip
       }
-      const pid = parseInt(content, 10);
-      if (!isNaN(pid)) {
+      // Parse "PID:timestamp" format
+      const parts = content.split(':');
+      const pid = parseInt(parts[0], 10);
+      const lockTime = parseInt(parts[1], 10) || 0;
+
+      // Check lock expiry (5 minutes)
+      if (lockTime && (Date.now() - lockTime > LOCK_EXPIRY_MS)) {
+        fs.unlinkSync(lockFile);
+        // Fall through to create new lock
+      } else if (!isNaN(pid)) {
         try {
           process.kill(pid, 0); // throws if process doesn't exist
           return; // Existing reindex still running, skip
@@ -280,16 +289,17 @@ function handlePostToolUse(input) {
 
   const child = spawn(prog, cliArgs, {
     cwd,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['ignore', 'ignore', 'ignore'],
     detached: true,
     shell: false,
   });
   child.unref();
 
-  // Write actual child PID now that we have it
-  try { fs.writeFileSync(lockFile, child.pid.toString()); } catch {}
+  // Write actual child PID + timestamp for expiry
+  const lockData = `${child.pid}:${Date.now()}`;
+  try { fs.writeFileSync(lockFile, lockData); } catch {}
 
-  // Clean up lock when child exits
+  // Clean up lock when child exits (may not fire in detached mode)
   child.on('exit', () => {
     try { fs.unlinkSync(lockFile); } catch {}
   });

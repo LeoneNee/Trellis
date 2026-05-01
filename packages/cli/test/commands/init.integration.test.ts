@@ -22,6 +22,7 @@ vi.mock("inquirer", () => ({
 
 vi.mock("node:child_process", () => ({
   execSync: vi.fn().mockReturnValue(""),
+  execFileSync: vi.fn().mockReturnValue(""),
 }));
 
 // === Imports ===
@@ -357,12 +358,14 @@ describe("init() integration", () => {
   it("#7 passes developer name to init_developer script", async () => {
     await init({ yes: true, user: "testdev" });
 
-    const calls = vi.mocked(execSync).mock.calls;
+    const { execFileSync } = await import("node:child_process");
+    const calls = vi.mocked(execFileSync).mock.calls;
     const match = calls.find(
-      ([cmd]) => typeof cmd === "string" && cmd.includes("init_developer.py"),
+      ([cmd, args]) => Array.isArray(args) && args.some((a: string) => typeof a === "string" && a.includes("init_developer")),
     );
     expect(match).toBeDefined();
-    expect(String((match as [unknown])[0])).toContain('"testdev"');
+    const args = (match as [unknown, unknown[]])[1] as string[];
+    expect(args).toContain("testdev");
   });
 
   it("#8 writes correct version file", async () => {

@@ -309,6 +309,15 @@ function buildInitMessage(projectRoot, result) {
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     `项目: ${rel}`,
     `创建了 ${result.created.length} 个文件/目录`,
+  ];
+  if (result.errors.length > 0) {
+    lines.push('');
+    lines.push(`⚠️ ${result.errors.length} 个错误：`);
+    for (const err of result.errors) {
+      lines.push(`  ! ${err}`);
+    }
+  }
+  lines.push(
     '',
     '已创建：',
     ...result.created.map((p) => `  + ${p}`),
@@ -322,7 +331,7 @@ function buildInitMessage(projectRoot, result) {
     '⚠️ 知识库会越用越智能，请养成沉淀习惯',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     '',
-  ];
+  );
   return lines.join('\n');
 }
 
@@ -338,9 +347,11 @@ function handlePreToolUse(input) {
   const EDIT_TOOLS = new Set(['Edit', 'Write', 'Patch']);
   if (!EDIT_TOOLS.has(toolName)) return;
 
-  const rawSessionId = process.env.CLAUDE_SESSION_ID || 'default';
-  const SESSION_ID = /^[a-zA-Z0-9_-]+$/.test(rawSessionId) ? rawSessionId : 'default';
-  const guardFile = path.join(require('os').tmpdir(), `claude_lessons_hook_${SESSION_ID}`);
+  const rawSessionId = process.env.CLAUDE_SESSION_ID || '';
+  const SESSION_ID = /^[a-zA-Z0-9_-]+$/.test(rawSessionId) ? rawSessionId : '';
+  const crypto = require('crypto');
+  const guardSuffix = SESSION_ID || crypto.createHash('sha256').update(cwd).digest('hex').slice(0, 12);
+  const guardFile = path.join(require('os').tmpdir(), `claude_lessons_hook_${guardSuffix}`);
   if (fs.existsSync(guardFile)) {
     try {
       const mtime = fs.statSync(guardFile).mtimeMs;

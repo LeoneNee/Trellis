@@ -16,7 +16,7 @@ Lesson Capture Hook - SubagentStop
 from __future__ import annotations
 
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import json
 import os
@@ -50,14 +50,15 @@ def is_error_fix_session(input_data: dict) -> tuple:
     last_msg = input_data.get("last_assistant_message", "") or ""
     agent_type = input_data.get("agent_type", "") or ""
 
-    # 宽松的关键词模式（任何 agent 都可能修 bug）
+    # 关键词模式（排除 prefix/suffix/affix 等误触发）
     fix_patterns = [
-        r"\bfix(ed|es|ing)?\b",
+        r"(?<!\w)fix(ed|es|ing)?(?!\w*(?:ture|ed|prefix|suffix|affix|mixfix|postfix|infix|transfix|crucifix))\b",
         r"\bbug\b",
         r"\brepair(ed)?\b",
         r"\bpatch(ed)?\b",
         r"\bhotfix\b",
         r"\bhot-fix\b",
+        r"\bbugfix\b",
     ]
 
     combined = last_msg.lower()
@@ -429,11 +430,11 @@ def is_meaningful_diff(diff_content: str) -> bool:
         if line.startswith("+") and not line.startswith("+++"):
             # 跳过空行和纯注释行
             stripped = line[1:].strip()
-            if stripped and not stripped.startswith("//") and not stripped.startswith("/*") and not stripped.startswith("*"):
+            if stripped and not stripped.startswith(("//", "/*", "*", "#", "--")):
                 code_change_lines += 1
         elif line.startswith("-") and not line.startswith("---"):
             stripped = line[1:].strip()
-            if stripped and not stripped.startswith("//") and not stripped.startswith("/*") and not stripped.startswith("*"):
+            if stripped and not stripped.startswith(("//", "/*", "*", "#", "--")):
                 code_change_lines += 1
     return code_change_lines >= 2
 

@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -69,23 +70,60 @@ def load_config(config_path: Optional[str] = None) -> dict:
     return json.loads(raw)
 
 
+def _resolve_cli_path(cli_path: str) -> str:
+    """Resolve CLI path: exact path first, then shutil.which() fallback."""
+    if cli_path and Path(cli_path).exists():
+        return cli_path
+    resolved = shutil.which(cli_path)
+    return resolved or ""
+
+
+# Flags that could enable command execution — reject these.
+_DANGEROUS_FLAGS = {"--exec", "--eval", "--system", "--shell", "-e", "-c"}
+
+
+def _validate_flags(flags: list) -> list:
+    """Filter out flags that could enable arbitrary command execution."""
+    safe = []
+    for f in flags:
+        if f in _DANGEROUS_FLAGS:
+            print(f"[engine] WARN: rejecting dangerous flag: {f}", file=sys.stderr)
+            continue
+        safe.append(f)
+    return safe
+
+
 def get_enabled_reviewers(config: dict) -> list[ReviewerConfig]:
     reviewers = []
     for r in config.get("reviewers", []):
         if not r.get("enabled", True):
             continue
-        cli_path = r.get("cli_path", "")
-        if not cli_path or not Path(cli_path).exists():
-            print(f"[engine] SKIP: {r.get('name', '?')} CLI not found at {cli_path}", file=sys.stderr)
+        cli_path = _resolve_cli_path(r.get("cli_path", ""))
+        if not cli_path:
+            print(f"[engine] SKIP: {r.get('name', '?')} CLI not found", file=sys.stderr)
             continue
         reviewers.append(ReviewerConfig(
             name=r["name"],
             cli_path=cli_path,
             subcommand=r.get("subcommand", ""),
-            flags=r.get("flags", []),
+            flags=_validate_flags(r.get("flags", [])),
             timeout_seconds=r.get("timeout_seconds", 25),
         ))
     return reviewers
+
+
+def _try_claude_fallback() -> Optional[ReviewerConfig]:
+    """If no external reviewers found, try Claude Code CLI as built-in fallback."""
+    claude_path = _resolve_cli_path("claude")
+    if not claude_path:
+        return None
+    print("[engine] No external reviewers found, using Claude CLI as fallback", file=sys.stderr)
+    return ReviewerConfig(
+        name="claude",
+        cli_path=claude_path,
+        flags=["-p", "--output-format", "text", "--max-turns", "1", "--no-input"],
+        timeout_seconds=45,
+    )
 
 
 def build_review_prompt(diff_content: str, focus: str = "all", message: str = "") -> str:
@@ -98,36 +136,82 @@ def run_reviewer(reviewer: ReviewerConfig, prompt: str, cwd: str) -> dict:
     if reviewer.subcommand:
         cmd.append(reviewer.subcommand)
     cmd.extend(reviewer.flags)
-    cmd.append(prompt)
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=reviewer.timeout_seconds,
-            cwd=cwd,
-        )
-        return {
-            "reviewer": reviewer.name,
-            "raw_output": result.stdout + result.stderr,
-            "timed_out": False,
-            "error": "",
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            "reviewer": reviewer.name,
-            "raw_output": "",
-            "timed_out": True,
-            "error": "timeout",
-        }
-    except Exception as e:
-        return {
-            "reviewer": reviewer.name,
-            "raw_output": "",
-            "timed_out": False,
-            "error": str(e),
-        }
+    is_claude = reviewer.name == "claude"
+
+    if is_claude:
+        # Claude CLI: pass prompt as the -p argument (last positional arg after flags)
+        # Truncate to 200KB to stay well under ARG_MAX
+        truncated = prompt[:200_000]
+        cmd.append(truncated)
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=reviewer.timeout_seconds,
+                cwd=cwd,
+            )
+            return {
+                "reviewer": reviewer.name,
+                "raw_output": result.stdout + result.stderr,
+                "timed_out": False,
+                "error": "",
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "reviewer": reviewer.name,
+                "raw_output": "",
+                "timed_out": True,
+                "error": "timeout",
+            }
+        except Exception as e:
+            return {
+                "reviewer": reviewer.name,
+                "raw_output": "",
+                "timed_out": False,
+                "error": str(e),
+            }
+    else:
+        # External CLIs: use temp file to avoid E2BIG
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, prefix="review-prompt-")
+        try:
+            tmp.write(prompt)
+            tmp.close()
+            cmd.append(f"@{tmp.name}")
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=reviewer.timeout_seconds,
+                    cwd=cwd,
+                )
+                return {
+                    "reviewer": reviewer.name,
+                    "raw_output": result.stdout + result.stderr,
+                    "timed_out": False,
+                    "error": "",
+                }
+            except subprocess.TimeoutExpired:
+                return {
+                    "reviewer": reviewer.name,
+                    "raw_output": "",
+                    "timed_out": True,
+                    "error": "timeout",
+                }
+            except Exception as e:
+                return {
+                    "reviewer": reviewer.name,
+                    "raw_output": "",
+                    "timed_out": False,
+                    "error": str(e),
+                }
+        finally:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
 
 
 def parse_issues(raw_output: str, reviewer_name: str) -> list[Issue]:
@@ -204,7 +288,12 @@ def main():
 
     # Load diff
     if args.diff.startswith("@"):
-        diff_path = Path(args.diff[1:])
+        diff_path = Path(args.diff[1:]).resolve()
+        # Validate path is under cwd or /tmp to prevent path traversal
+        allowed_prefixes = [Path.cwd().resolve(), Path("/tmp"), Path(tempfile.gettempdir())]
+        if not any(str(diff_path).startswith(str(p)) for p in allowed_prefixes):
+            print(f"[engine] ERROR: diff file path outside allowed directories: {diff_path}", file=sys.stderr)
+            sys.exit(2)
         diff_content = diff_path.read_text(encoding="utf-8") if diff_path.exists() else ""
     elif Path(args.diff).exists() and "\n" not in args.diff:
         diff_content = Path(args.diff).read_text(encoding="utf-8")
@@ -220,8 +309,16 @@ def main():
     reviewers = get_enabled_reviewers(config)
 
     if not reviewers:
-        json.dump({"confirmed_issues": [], "unverified_issues": [], "reviewers": [], "error": "no reviewers available"}, sys.stdout)
-        return
+        # Fallback: try Claude Code CLI as built-in reviewer
+        claude_fallback = _try_claude_fallback()
+        if claude_fallback:
+            reviewers = [claude_fallback]
+            # Single reviewer: lower confirm_threshold so findings still get reported
+            config.setdefault("merge_policy", {})["confirm_threshold"] = 1
+        else:
+            print("[engine] No reviewers available and Claude CLI not found. Skipping review.", file=sys.stderr)
+            json.dump({"confirmed_issues": [], "unverified_issues": [], "reviewers": [], "error": "no reviewers available"}, sys.stdout)
+            return
 
     # Build prompt
     prompt = build_review_prompt(diff_content, args.focus, getattr(args, "message", ""))
@@ -229,7 +326,7 @@ def main():
 
     # Run reviewers in parallel
     results = []
-    with ThreadPoolExecutor(max_workers=len(reviewers)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(reviewers), 8)) as executor:
         futures = {executor.submit(run_reviewer, r, prompt, cwd): r for r in reviewers}
         for future in as_completed(futures):
             results.append(future.result())

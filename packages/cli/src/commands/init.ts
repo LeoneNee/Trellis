@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
@@ -554,7 +554,7 @@ async function handleReinit(
     try {
       const pythonCmd = getPythonCommand();
       const scriptPath = path.join(cwd, PATHS.SCRIPTS, "init_developer.py");
-      execSync(`${pythonCmd} "${scriptPath}" "${devName}"`, {
+      execFileSync(pythonCmd, [scriptPath, devName], {
         cwd,
         stdio: "pipe",
       });
@@ -1394,7 +1394,7 @@ export async function init(options: InitOptions): Promise<void> {
     try {
       const pythonCmd = getPythonCommand();
       const scriptPath = path.join(cwd, PATHS.SCRIPTS, "init_developer.py");
-      execSync(`${pythonCmd} "${scriptPath}" "${developerName}"`, {
+      execFileSync(pythonCmd, [scriptPath, developerName], {
         cwd,
         stdio: "pipe", // Silent
       });

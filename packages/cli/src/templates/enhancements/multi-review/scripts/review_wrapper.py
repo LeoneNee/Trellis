@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 SKILL_DIR = Path(__file__).parent
 ENGINE_SCRIPT = SKILL_DIR / "review_engine.py"
@@ -21,8 +22,9 @@ CONFIG_FILE = SKILL_DIR / "config.json"
 
 def check_prerequisites() -> bool:
     if not CONFIG_FILE.exists():
-        print("[review-wrapper] SKIP: no config.json found, skipping multi-review", file=sys.stderr)
-        return False
+        # No config at all — engine will try Claude CLI fallback
+        print("[review-wrapper] No config.json, will try Claude CLI fallback", file=sys.stderr)
+        return True
 
     try:
         config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -32,8 +34,8 @@ def check_prerequisites() -> bool:
 
     enabled = [r for r in config.get("reviewers", []) if r.get("enabled", True)]
     if not enabled:
-        print("[review-wrapper] SKIP: no reviewers enabled in config.json", file=sys.stderr)
-        return False
+        print("[review-wrapper] No reviewers enabled, will try Claude CLI fallback", file=sys.stderr)
+        return True
 
     available = []
     for r in enabled:
@@ -42,8 +44,8 @@ def check_prerequisites() -> bool:
             available.append(r["name"])
 
     if not available:
-        print("[review-wrapper] SKIP: no reviewer CLIs found on disk", file=sys.stderr)
-        return False
+        print("[review-wrapper] Config reviewers not found on disk, will try Claude CLI fallback", file=sys.stderr)
+        return True
 
     return True
 
@@ -52,6 +54,7 @@ def run_review(diff_content: str, message: str = "") -> dict:
     env = os.environ.copy()
     # Write diff to temp file to avoid E2BIG on large diffs
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".diff", delete=False, prefix="review-")
+    proc = None
     try:
         tmp.write(diff_content)
         tmp.close()
@@ -63,16 +66,23 @@ def run_review(diff_content: str, message: str = "") -> dict:
         if message:
             cmd.extend(["--message", message[:200]])
 
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             env=env,
-            timeout=27,
         )
-    except subprocess.TimeoutExpired:
-        print("[review-wrapper] ERROR: review engine timed out", file=sys.stderr)
-        sys.exit(2)
+        try:
+            stdout, stderr = proc.communicate(timeout=27)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            print("[review-wrapper] ERROR: review engine timed out", file=sys.stderr)
+            sys.exit(2)
+        result = SimpleNamespace(stdout=stdout or "", stderr=stderr or "", returncode=proc.returncode)
+    except SystemExit:
+        raise
     finally:
         try:
             os.unlink(tmp.name)
