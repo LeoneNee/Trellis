@@ -293,9 +293,13 @@ function handlePostToolUse(input) {
   });
   child.unref();
 
-  // Update lock with child PID for accurate tracking
+  // Update lock with child PID for accurate tracking (atomic via rename)
   if (child.pid) {
-    try { fs.writeFileSync(lockFile, `${child.pid}:${Date.now()}`); } catch {}
+    try {
+      const tmpLock = lockFile + '.tmp';
+      fs.writeFileSync(tmpLock, `${child.pid}:${Date.now()}`);
+      fs.renameSync(tmpLock, lockFile);
+    } catch {}
   }
 
   // Clean up lock when child exits (may not fire in detached mode)

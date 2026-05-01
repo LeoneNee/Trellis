@@ -269,10 +269,12 @@ def _has_duplicate_lesson(lessons_dir: Path, date_str: str, files: list[str]) ->
     if not files:
         return False
     primary = files[0]
+    escaped = re.escape(primary)
+    pattern = re.compile(rf"^\s+-\s+{escaped}\s*$", re.MULTILINE)
     for md_file in lessons_dir.glob(f"{date_str}-*.md"):
         try:
             text = md_file.read_text(encoding="utf-8")
-            if f"  - {primary}" in text:
+            if pattern.search(text):
                 return True
         except Exception:
             continue

@@ -89,18 +89,19 @@ const DANGEROUS_PATTERNS = [
   // rm variants (including encoding bypasses)
   /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$|\.\/)/,
   /rm\s+-r\s+([\/~]|\.\s*$)/, // rm -r without -f on absolute/relative paths
-  /\$'[^']*\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[0-7]{3})/, // $'\x72' / $'r' / $'\162' encoding bypass
+  /\$'[^']*\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{3}|[nrt\\])/, // $'\x72' / $'\U00000072' / $'\162' / $'\n' encoding bypass
   /\$\{[!#][a-zA-Z_]*\}/, // indirect/reference variables: ${!var}, ${#var}
   /\$\{(BASH_COMMAND|SHELLOPTS|BASH_SUBSHELL|IFS|FUNCNAME|OLDPWD)\b[^}]*\}/, // dangerous shell variables
   /:\s*>?\s*\/dev\/null/,
   // pipe to shell
   /\|\s*(\/?(usr\/)?bin\/)?(sh|bash|zsh|fish)\b(\s+-c|\s+--)?/,
   /eval\s+\$/,
-  /\$\(.*\)\s*\|\s*(sh|bash)/,
+  /\$\([^)]*\)\s*\|\s*(sh|bash)/,
   /curl.*\|\s*(sh|bash)/,
   /wget.*\|\s*(sh|bash)/,
   /chmod\s+777/,
-  /git\s+push\s+.*(?<!-with-lease)(?<!-if-includes)\s--force(?:\s|$)/,
+  /\bgit\s+push\b.*\s--force(?:\s|$)/, // --force (long form)
+  /\bgit\s+push\b.*\s-f(?:\s|$)/,       // -f (short form)
   /dd\s+if=/,
   // redirect to sensitive paths
   />\s*\/etc\//,
@@ -108,7 +109,7 @@ const DANGEROUS_PATTERNS = [
   // backtick command substitution with special chars
   /`[^`]*[\s|;&$><][^`]*`/,
   // $() subshell with dangerous commands (handles nested parens via .* greedy)
-  /\$\(.*\b(rm|dd|mkfs|chmod|chown|mv|cat|sh|bash)\b/,
+  /\$\([^)]*\b(rm|dd|mkfs|chmod|chown|mv|cat|sh|bash)\b/,
   // interpreter -e/-c flag (code execution)
   /\b(node|python|python3|perl|ruby)\s+(-e|-c)\s/,
   /base64\s+-d\s*\|.*\b(sh|bash)/,
@@ -150,7 +151,9 @@ const SENSITIVE_PATHS = [
 function isSensitivePath(filePath) {
   if (!filePath) return false;
   const expanded = filePath.replace(/^~/, process.env.HOME || '');
-  const resolved = path.resolve(expanded);
+  let resolved = path.resolve(expanded);
+  // Resolve symlinks to prevent writing through symlink to sensitive targets
+  try { resolved = fs.realpathSync(resolved); } catch { /* file may not exist yet */ }
   for (const pattern of SENSITIVE_PATHS) {
     if (pattern.test(resolved)) return true;
   }
