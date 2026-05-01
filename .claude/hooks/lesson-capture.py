@@ -32,10 +32,13 @@ LESSONS_DIR = ".trellis/lessons"
 
 def find_repo_root(start_path: str) -> Optional[str]:
     current = Path(start_path).resolve()
-    while current != current.parent:
+    for _ in range(8):
         if (current / ".git").exists():
             return str(current)
-        current = current.parent
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
     return None
 
 
@@ -437,7 +440,10 @@ def is_meaningful_diff(diff_content: str) -> bool:
 
 def main():
     try:
-        input_data = json.load(sys.stdin)
+        raw = sys.stdin.read(1_000_000)  # limit to 1MB
+        if not raw:
+            sys.exit(0)
+        input_data = json.loads(raw)
     except json.JSONDecodeError:
         sys.exit(0)
 

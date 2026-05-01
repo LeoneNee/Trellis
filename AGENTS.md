@@ -28,10 +28,9 @@ Keep this managed block so 'trellis update' can refresh the instructions.
 - Full guide and tools reference: see CLAUDE.md
 
 <!-- gitnexus:start -->
-<!-- SYNC WARNING: This block is duplicated in CLAUDE.md. Update both when modifying. Run `npx gitnexus analyze` to refresh both. -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Trellis** (6194 symbols, 9367 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Trellis** (6203 symbols, 9378 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

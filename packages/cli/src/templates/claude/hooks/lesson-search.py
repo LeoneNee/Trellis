@@ -208,6 +208,9 @@ def search_lessons(repo_root: str, user_prompt: str, top_n: int = 3) -> list[dic
     all_scored: list[tuple[dict, float]] = []
 
     for md_file in lessons_dir.rglob("*.md"):
+        # Prevent symlink escape
+        if not md_file.resolve().is_relative_to(lessons_dir.resolve()):
+            continue
         try:
             content = md_file.read_text(encoding="utf-8", errors="ignore")
         except Exception:
@@ -297,7 +300,10 @@ def build_context(results: list[dict]) -> str:
 
 def main():
     try:
-        input_data = json.load(sys.stdin)
+        raw = sys.stdin.read(1_000_000)  # limit to 1MB
+        if not raw:
+            sys.exit(0)
+        input_data = json.loads(raw)
     except json.JSONDecodeError:
         sys.exit(0)
 

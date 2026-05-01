@@ -6,6 +6,7 @@
  * --superpowers, --gstack, or --all flags, this configurator copies additional
  * templates and updates config.yaml.
  */
+import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -269,7 +270,7 @@ export async function configureEnhancements(
 
   if (enhancements.gitnexus) {
     await configureGitnexus(cwd);
-    await configureConsensusDebate(cwd);
+    await configureMultiReview(cwd);
   }
   if (enhancements.superpowers) {
     await configureSuperpowers(cwd);
@@ -342,10 +343,13 @@ async function configureGitnexus(cwd: string): Promise<void> {
     await writeFile(dest, content);
   }
 
-  // Create .claude-approve marker for auto-approve hook
+  // Create .claude-approve marker with SHA256-derived token for auto-approve hook
   const approveMarker = path.join(cwd, ".claude-approve");
   if (!fs.existsSync(approveMarker)) {
-    await writeFile(approveMarker, "");
+    const token =
+      "approve-" +
+      createHash("sha256").update(path.resolve(cwd)).digest("hex").slice(0, 16);
+    await writeFile(approveMarker, token);
     console.log("  ✓ Created .claude-approve marker (auto-approve enabled)");
   }
 
@@ -353,21 +357,21 @@ async function configureGitnexus(cwd: string): Promise<void> {
 }
 
 /**
- * Configure consensus-debate skill:
- * - Copy scripts (run_debate.py, review_wrapper.py) to .claude/skills/consensus-debate/scripts/
- * - Copy models.json template as a reference (user must fill in their own models)
+ * Configure multi-review skill:
+ * - Copy scripts (review_engine.py, review_wrapper.py) to .claude/skills/multi-review/scripts/
+ * - Copy config.json template as a reference (user must configure CLI paths)
  */
-async function configureConsensusDebate(cwd: string): Promise<void> {
+async function configureMultiReview(cwd: string): Promise<void> {
   const scriptsDir = path.join(
     cwd,
     ".claude",
     "skills",
-    "consensus-debate",
+    "multi-review",
     "scripts",
   );
   ensureDir(scriptsDir);
 
-  const scriptsSource = getEnhancementsDir("consensus-debate", "scripts");
+  const scriptsSource = getEnhancementsDir("multi-review", "scripts");
   if (fs.existsSync(scriptsSource)) {
     for (const file of fs.readdirSync(scriptsSource)) {
       const src = path.join(scriptsSource, file);
@@ -377,21 +381,10 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
     }
   }
 
-  // If models.json was copied, ensure it has a comment header reminding user to configure
-  const modelsPath = path.join(scriptsDir, "models.json");
-  if (fs.existsSync(modelsPath)) {
-    const modelsContent = fs.readFileSync(modelsPath, "utf-8");
-    if (!modelsContent.includes("⚠️") && !modelsContent.includes("REQUIRED")) {
-      const header =
-        "// ⚠️ REQUIRED: Fill in your own API keys and model names before use\n// See: .claude/skills/consensus-debate/scripts/models.json\n";
-      fs.writeFileSync(modelsPath, header + modelsContent, "utf-8");
-    }
-  }
-
   // Copy SKILL.md if it exists
-  const skillSource = getEnhancementsDir("consensus-debate", "skills");
+  const skillSource = getEnhancementsDir("multi-review", "skills");
   if (fs.existsSync(skillSource)) {
-    const skillDest = path.join(cwd, ".claude", "skills", "consensus-debate");
+    const skillDest = path.join(cwd, ".claude", "skills", "multi-review");
     ensureDir(skillDest);
     for (const file of fs.readdirSync(skillSource)) {
       const src = path.join(skillSource, file);
@@ -401,12 +394,12 @@ async function configureConsensusDebate(cwd: string): Promise<void> {
     }
   }
 
-  console.log("  ✓ consensus-debate skill configured");
+  console.log("  ✓ multi-review skill configured");
   console.log(
-    "    ⚠ Edit .claude/skills/consensus-debate/scripts/models.json to configure your models",
+    "    ⚠ Edit .claude/skills/multi-review/scripts/config.json to set CLI paths",
   );
   console.log(
-    "    Need: 2+ participants + 1 judge, each with endpoint/api_key/model/role/protocol",
+    "    Need: codex CLI and/or kimi CLI installed and authenticated",
   );
 }
 

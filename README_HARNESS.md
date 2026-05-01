@@ -18,7 +18,7 @@
 | Lesson Capture | ✅ 就绪 | prompt 匹配 + subagent 停止时捕获 |
 | Auto-Approve | ✅ 就绪 | `trellis init --all` 自动创建 `.claude-approve` 标记 |
 | 共识博弈 | ✅ 就绪 | 本地 skill，git commit 时自动触发 + Stop 钩子正确指向 |
-| 计划自动审查 | ✅ 已修复 | Stop 钩子 → `/consensus-debate`（实际存在） |
+| 计划自动审查 | ✅ 已修复 | Stop 钩子 → `/multi-review`（实际存在） |
 
 ---
 
@@ -48,7 +48,7 @@
 │  ├── 部署/push/PR         → Skill("ship")                      [gstack]    │
 │  ├── TDD                  → Skill("superpowers:test-driven-development")   │
 │  ├── 计划评审/架构评审     → Skill("plan-eng-review")           [gstack]    │
-│  ├── 多模型博弈           → Skill("consensus-debate")          [本地]      │
+│  ├── 多模型博弈           → Skill("multi-review")          [本地]      │
 │  ├── 代码质量             → Skill("health")                    [gstack]    │
 │  ├── 周度回顾             → Skill("retro")                     [gstack]    │
 │  ├── 验证后交付           → Skill("superpowers:verification-before-completion") │
@@ -102,7 +102,7 @@
 
 
 ═══════════════════════════════════════════════════════════════════════════════
- 阶段 3: 计划评审 — Skill("plan-eng-review") 或 Skill("consensus-debate")
+ 阶段 3: 计划评审 — Skill("plan-eng-review") 或 Skill("multi-review")
 ═══════════════════════════════════════════════════════════════════════════════
 
  Skill("plan-eng-review")
@@ -110,14 +110,14 @@
                 └── 工程经理视角交互式评分
                     ├── 架构 / 数据流 / 边界 / 测试 / 性能
 
-  或 Skill("consensus-debate")
+  或 Skill("multi-review")
                 │
                 └── 多模型博弈（minimax + glm → kimi-k2.5 judge）
                     ├── 提案 → 交叉评审 → Judge 汇总
 
   Hook: Stop（会话结束时）
                 │
-                └── 检测 plan_intent → 提示用 Skill("consensus-debate")
+                └── 检测 plan_intent → 提示用 Skill("multi-review")
 
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -205,7 +205,7 @@
                 │
                 ├── git commit
                 │   └── Hook: PreToolUse(Bash git commit*)
-                │       └── consensus-debate/review_wrapper.py → 多模型博弈 review
+                │       └── multi-review/review_wrapper.py → 多模型博弈 review
                 │
                 ├── git push
                 │
@@ -229,7 +229,7 @@
 │                    │ Edit|Write|Patch  │ ① auto-approve-hook.cjs 自动授权 │
 │                    │                   │ ② harness-hook.cjs 知识库提醒     │
 │                    ├───────────────────┼───────────────────────────────────┤
-│                    │ Bash(git commit*) │ consensus-debate review_wrapper   │
+│                    │ Bash(git commit*) │ multi-review review_wrapper   │
 ├────────────────────┼───────────────────┼───────────────────────────────────┤
 │ PostToolUse        │ Bash              │ gitnexus-hook.cjs 索引过期检测     │
 │                    ├───────────────────┼───────────────────────────────────┤
@@ -356,7 +356,7 @@
 
 | Skill 名称 | 路径 | 用途 |
 |------------|-----|------|
-| `consensus-debate` | `~/.claude/skills/consensus-debate/` | 多模型博弈评审 |
+| `multi-review` | `~/.claude/skills/multi-review/` | 多模型博弈评审 |
 
 ### 插件 Skills（已启用，5 个）
 
@@ -412,10 +412,10 @@ cd /path/to/Trellis && pnpm install && pnpm build && npm link
 cd your-project
 trellis init --claude --all -u yourname
 # 自动检测并安装：superpowers 插件、gstack skills、GitNexus MCP
-# 自动创建：.claude-approve、项目级 hooks、consensus-debate 脚本
+# 自动创建：.claude-approve、项目级 hooks、multi-review 脚本
 
-# 3. 配置 consensus-debate 模型（每个成员编辑自己的配置）
-# 编辑 .claude/skills/consensus-debate/scripts/models.json
+# 3. 配置 multi-review 模型（每个成员编辑自己的配置）
+# 编辑 .claude/skills/multi-review/scripts/models.json
 # 需要：2+ 个 participant + 1 个 judge，每个模型独立配置 endpoint/api_key/model/role/protocol
 # protocol 支持 "openai" 或 "anthropic"
 
@@ -432,7 +432,7 @@ claude
 | Trellis CLI | 已 link | 团队成员 `git clone` + `npm link`（同一仓库） |
 | 用户级依赖 | 已安装，复用 | `--all` 自动检测并安装 |
 | 项目级 hooks | settings.json + `.claude/hooks/` | 同左 |
-| consensus-debate | 本地 `~/.claude/skills/` | 项目级 `.claude/skills/`（编辑 models.json 配置模型） |
+| multi-review | 本地 `~/.claude/skills/` | 项目级 `.claude/skills/`（编辑 models.json 配置模型） |
 | GitNexus MCP | 用户级 `~/.claude.json` | 自动注册（`npx gitnexus setup`） |
 | API keys | 不在项目中 | 不在项目中（每人编辑自己的 models.json） |
 
@@ -445,7 +445,7 @@ claude
 | 探索产品想法 | `"帮我 brainstorm 这个功能"` 或 `/office-hours` | `office-hours` |
 | 写实施计划 | `"为这个功能写个实施方案"` | `superpowers:writing-plans` |
 | 评审计划 | `"评审这个计划"` 或 `/plan-eng-review` | `plan-eng-review` |
-| 多模型评审 | `/consensus-debate` | `consensus-debate` |
+| 多模型评审 | `/multi-review` | `multi-review` |
 | 开始开发 | `"按计划执行"` | `superpowers:executing-plans` |
 | 并行开发多个任务 | `"并行开发这三个功能"` | `superpowers:dispatching-parallel-agents` |
 | 调试 Bug | `"这个报错了，帮我查"` 或 `/investigate` | `investigate` |
@@ -497,7 +497,7 @@ pnpm dev                   # 前端联调
 | 输入 Prompt 时 | lesson-search 自动匹配历史经验注入上下文 |
 | 搜索代码时 | GitNexus 自动注入图谱上下文增强搜索 |
 | 编辑文件时 | auto-approve 自动授权 + harness 知识库提醒 |
-| git commit 时 | consensus-debate 自动触发多模型 review |
+| git commit 时 | multi-review 自动触发多模型 review |
 | 会话结束时 | 检测到计划意图时提示进行评审 |
 | subagent 结束时 | lesson-capture 自动沉淀经验 |
 
@@ -523,7 +523,7 @@ pnpm dev                   # 前端联调
 
 3. 用户: "评审这个计划"
    → /plan-eng-review → 工程经理视角评分
-   → /consensus-debate → 多模型博弈评审（可选）
+   → /multi-review → 多模型博弈评审（可选）
 
 4. 用户: "按计划执行"
    → /superpowers:executing-plans → TDD 执行
@@ -566,7 +566,7 @@ pnpm dev                   # 前端联调
 
 | # | 问题 | 修复 | 影响文件 |
 |---|------|------|---------|
-| 1 | Stop 钩子提示 `/review-plan` 不存在 | 改为 `/consensus-debate` | `settings.json` |
+| 1 | Stop 钩子提示 `/review-plan` 不存在 | 改为 `/multi-review` | `settings.json` |
 | 2 | harness-hook.cjs 未注册 | 添加到 PreToolUse(Edit\|Write\|Patch) 匹配器 | `settings.json` |
 | 3 | CLAUDE.md 用 `/trellis:xxx` 格式无法映射 | 改为 `Skill("actual-name")` 格式 | `CLAUDE.md` |
 | 4 | 阶段3 语义混淆（code-review vs plan review） | 阶段3 → `plan-eng-review`，阶段5 → `review` | `CLAUDE.md` |
@@ -574,8 +574,8 @@ pnpm dev                   # 前端联调
 | 6 | `.claude-approve` 缺失导致 auto-approve 不生效 | `configureGitnexus` 自动创建 `.claude-approve` | `enhancements.ts`, `readme_harness.md` |
 | 7 | 6.3 节 GitNexus CLI 命令格式虚构 | 改为 MCP 工具调用格式（`gitnexus_impact(...)`） | `readme_harness.md` |
 | 8 | gstack 技能数量错误（39→43）+ 缺少 `open-gstack-browser` | 更新数量 + 补充缺失技能 | `readme_harness.md` |
-| 9 | `consensus-debate` 标注为插件但实际是本地 skill | 移至"本地 Skills"分类 | `readme_harness.md` |
+| 9 | `multi-review` 标注为插件但实际是本地 skill | 移至"本地 Skills"分类 | `readme_harness.md` |
 | 10 | 插件表列出 `ralph-wiggum`、`code-review` 但未启用 | 移除未启用插件，保留已启用的 5 个 | `readme_harness.md` |
 | 11 | 阶段7 流程图 `git commit + push` 混为一行 | 拆分为独立的 `git commit` + `git push` | `readme_harness.md` |
-| 12 | `consensus-debate` models.json endpoint 缺少路径 | 添加 `/v1/chat/completions` 路径 | `models.json` |
+| 12 | `multi-review` models.json endpoint 缺少路径 | 添加 `/v1/chat/completions` 路径 | `models.json` |
 | 13 | `run_debate.py` openai 协议缺少 `max_tokens` | 添加 `max_tokens: 16384` | `run_debate.py` |

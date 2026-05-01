@@ -134,7 +134,7 @@ Stage 7 → Skill("ship")                                     Ship (test → rev
 
 Always available:
 - `investigate` — root cause debugging + GitNexus tracing
-- `consensus-debate` — multi-model debate review
+- `multi-review` — multi-agent code review with code execution verification
 - `superpowers:systematic-debugging` — systematic debugging
 
 ---
@@ -155,7 +155,7 @@ Always available:
 | Deploy / push / PR | `ship` | gstack |
 | TDD | `superpowers:test-driven-development` | Superpowers |
 | Plan review / architecture review | `plan-eng-review` | gstack |
-| Multi-model debate | `consensus-debate` | local |
+| Multi-agent review | `multi-review` | local |
 | Code quality | `health` | gstack |
 | Weekly retrospective | `retro` | gstack |
 | Verify before delivery | `superpowers:verification-before-completion` | Superpowers |

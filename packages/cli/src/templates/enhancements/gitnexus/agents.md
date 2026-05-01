@@ -44,7 +44,7 @@ Stage 7 → /ship                          Ship (test → review → CHANGELOG �
 
 Always available:
 - `/investigate` — root cause debugging + GitNexus tracing
-- `/consensus-debate` — multi-model debate review
+- `/multi-review` — multi-agent code review with code execution verification
 - `/trellis:debug-systematic` — systematic debugging
 
 ---
@@ -65,7 +65,7 @@ Always available:
 | Deploy / push / PR | `ship` | gstack |
 | TDD | `superpowers:test-driven-development` | Superpowers |
 | Plan review / arch review | `plan-eng-review` | gstack |
-| Multi-model debate | `consensus-debate` | local |
+| Multi-agent review | `multi-review` | local |
 | Code quality | `health` | gstack |
 | Weekly retrospective | `retro` | gstack |
 | Verify before delivery | `superpowers:verification-before-completion` | Superpowers |

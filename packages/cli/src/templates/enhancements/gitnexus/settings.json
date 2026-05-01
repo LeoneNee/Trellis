@@ -89,7 +89,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd $CLAUDE_PROJECT_DIR && git diff --cached -- '*.py' '*.ts' '*.tsx' '*.js' '*.jsx' '*.go' '*.java' '*.rs' 2>/dev/null | {{PYTHON_CMD}} .claude/skills/consensus-debate/scripts/review_wrapper.py --message \"$(git log -1 --format=%s 2>/dev/null | head -c 100 || echo '')\""
+            "command": "bash .claude/hooks/commit-review.sh",
+            "timeout": 30
           }
         ]
       }
@@ -149,7 +150,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /consensus-debate for multi-model review.'; fi"
+            "command": "SESSION_ID=$(echo \"${CLAUDE_SESSION_ID:-default}\" | tr -cd 'a-zA-Z0-9_-') && if [ -f /tmp/claude_plan_intent_$SESSION_ID ] && [ ! -f /tmp/claude_plan_review_done_$SESSION_ID ]; then echo '\\n[Auto-Review] Plan completed — consider using /multi-review for multi-agent code review.'; fi"
           }
         ]
       }

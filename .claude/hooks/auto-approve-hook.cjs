@@ -11,10 +11,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 function readInput() {
   try {
     const data = fs.readFileSync(0, 'utf-8');
+    if (data.length > 1_000_000) return {}; // reject oversized input
     return JSON.parse(data);
   } catch {
     return {};
@@ -39,12 +41,30 @@ function findProjectRoot(startDir) {
 }
 
 /**
- * Check if project has auto-approve marker.
+ * Generate the expected approve token for a given project root.
+ * Users must put this exact string in their .claude-approve file.
+ */
+function generateApproveToken(projectRoot) {
+  const normalized = path.resolve(projectRoot);
+  return 'approve-' + crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+}
+
+/**
+ * Check if project has auto-approve marker with valid content.
  */
 function isApproved(projectRoot) {
   if (!projectRoot) return false;
   const marker = path.join(projectRoot, '.claude-approve');
-  return fs.existsSync(marker);
+  if (!fs.existsSync(marker)) return false;
+  try {
+    const content = fs.readFileSync(marker, 'utf-8').trim();
+    if (!content) return false; // empty file not accepted
+    // Accept if content matches expected token (SHA256 of project root path)
+    const expected = generateApproveToken(projectRoot);
+    return content === expected;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -66,9 +86,9 @@ const PERMISSION_TOOLS = new Set([
  * Dangerous patterns that should NEVER be auto-approved.
  */
 const DANGEROUS_PATTERNS = [
-  /rm\s+(-rf|-r\s+-f|-f\s+-r)\s+([\/~]|\/)/,
+  /rm\s+(-rf|-r\s+-f|-f\s+-r|-fR|-Rf|--recursive\s+--force|--force\s+--recursive)\s+([\/~]|\*\s*$|\.\s*$)/,
   /:\s*>?\s*\/dev\/null/,
-  /\|\s*(sh|bash|zsh|fish)\s*$/,
+  /\|\s*(\/?(usr\/)?bin\/)?(sh|bash|zsh|fish)\b(\s+-c|\s+--)?/,
   /eval\s+\$/,
   /\$\(.*\)\s*\|\s*(sh|bash)/,
   /curl.*\|\s*(sh|bash)/,
@@ -78,6 +98,15 @@ const DANGEROUS_PATTERNS = [
   /dd\s+if=/,
   />\s*\/etc\//,
   />\s*~\/\.ssh\//,
+  /`[^`]*[\s|;&$><][^`]*`/,
+  /\$\([^)]*\b(rm|dd|mkfs|chmod|chown|mv|cat)\b/,
+  /\b(node|python|python3|perl|ruby)\s+(-e|-c)\s/,
+  /base64\s+-d\s*\|.*\b(sh|bash)/,
+  /<<\s*['"]?[A-Z_]{2,}/,
+  /\bsudo\s+.*\b(rm|dd|mkfs|chmod|chown)\b/,
+  /\bxargs\s+.*(sh|bash|rm|chmod|chown)\b/,
+  /\bfind\b.*-exec\s+/,
+  /\bawk\s+.*\b(system|exec)\s*\(/,
 ];
 
 function isDangerous(command) {
@@ -135,14 +164,6 @@ function handlePreToolUse(input) {
 
   // Auto-approve file modifications
   sendAllowDecision(projectRoot);
-}
-
-function getRelativePath(targetPath) {
-  const home = require('os').homedir();
-  if (targetPath && targetPath.startsWith(home)) {
-    return targetPath.replace(home, '~');
-  }
-  return targetPath || 'unknown';
 }
 
 function sendAllow(projectRoot) {

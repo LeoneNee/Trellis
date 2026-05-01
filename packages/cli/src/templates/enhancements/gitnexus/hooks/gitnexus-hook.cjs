@@ -21,6 +21,7 @@ const { spawnSync, spawn } = require('child_process');
 function readInput() {
   try {
     const data = fs.readFileSync(0, 'utf-8');
+    if (data.length > 1_000_000) return {}; // reject oversized input
     return JSON.parse(data);
   } catch {
     return {};
@@ -251,20 +252,31 @@ function handlePostToolUse(input) {
   const lockFile = path.join(gitNexusDir, '.reindex.lock');
   try {
     if (fs.existsSync(lockFile)) {
-      const pid = parseInt(fs.readFileSync(lockFile, 'utf-8').trim(), 10);
-      // Check if process is still running
-      try {
-        process.kill(pid, 0); // throws if process doesn't exist
-        return; // Existing reindex still running, skip
-      } catch {
-        // Stale lock, remove it
+      const content = fs.readFileSync(lockFile, 'utf-8').trim();
+      if (content === 'pending') {
+        return; // Another process is starting reindex, skip
+      }
+      const pid = parseInt(content, 10);
+      if (!isNaN(pid)) {
+        try {
+          process.kill(pid, 0); // throws if process doesn't exist
+          return; // Existing reindex still running, skip
+        } catch {
+          // Stale lock, remove it
+          fs.unlinkSync(lockFile);
+        }
+      } else {
         fs.unlinkSync(lockFile);
       }
     }
   } catch { /* ignore lock check errors */ }
 
-  // Write PID lock before spawning
-  try { fs.writeFileSync(lockFile, process.pid.toString()); } catch {}
+  // Use exclusive create to prevent race condition
+  try {
+    fs.writeFileSync(lockFile, 'pending', { flag: 'wx' });
+  } catch {
+    return; // Another process won the race
+  }
 
   const child = spawn(prog, cliArgs, {
     cwd,
@@ -272,7 +284,10 @@ function handlePostToolUse(input) {
     detached: true,
     shell: false,
   });
-  child.unref(); // Don't keep parent process alive
+  child.unref();
+
+  // Write actual child PID now that we have it
+  try { fs.writeFileSync(lockFile, child.pid.toString()); } catch {}
 
   // Clean up lock when child exits
   child.on('exit', () => {

@@ -1,0 +1,24 @@
+{
+  "reviewers": [
+    {
+      "name": "codex",
+      "cli_path": "codex",
+      "subcommand": "exec",
+      "flags": ["--sandbox", "read-only"],
+      "timeout_seconds": 25,
+      "enabled": true
+    },
+    {
+      "name": "kimi",
+      "cli_path": "kimi",
+      "flags": ["--yolo", "--max-steps-per-turn", "5"],
+      "timeout_seconds": 25,
+      "enabled": true
+    }
+  ],
+  "merge_policy": {
+    "confirm_threshold": 2,
+    "single_report_policy": "downgrade_to_warning",
+    "timeout_policy": "skip_reviewer"
+  }
+}

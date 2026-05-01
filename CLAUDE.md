@@ -7,7 +7,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Trellis** (6194 symbols, 9367 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Trellis** (6203 symbols, 9378 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -131,7 +131,7 @@ Stage 7 → Skill("ship")                                     Ship (test → rev
 
 Always available:
 - `investigate` — root cause debugging + GitNexus tracing
-- `consensus-debate` — multi-model debate review
+- `multi-review` — multi-agent code review with code execution verification
 - `superpowers:systematic-debugging` — systematic debugging
 
 ---
@@ -152,7 +152,7 @@ Always available:
 | Deploy / push / PR | `ship` | gstack |
 | TDD | `superpowers:test-driven-development` | Superpowers |
 | Plan review / architecture review | `plan-eng-review` | gstack |
-| Multi-model debate | `consensus-debate` | local |
+| Multi-agent review | `multi-review` | local |
 | Code quality | `health` | gstack |
 | Weekly retrospective | `retro` | gstack |
 | Verify before delivery | `superpowers:verification-before-completion` | Superpowers |

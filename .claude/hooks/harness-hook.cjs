@@ -13,6 +13,7 @@ const path = require('path');
 function readInput() {
   try {
     const data = fs.readFileSync(0, 'utf-8');
+    if (data.length > 1_000_000) return {}; // reject oversized input
     return JSON.parse(data);
   } catch {
     return {};
@@ -43,6 +44,9 @@ function findProjectRoot(startDir) {
   for (let i = 0; i < 8; i++) {
     const candidate = path.join(dir, '.trellis', 'lessons');
     if (fs.existsSync(candidate)) return dir;
+    // Also check for .git as project root indicator
+    const gitDir = path.join(dir, '.git');
+    if (fs.existsSync(gitDir)) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -337,7 +341,15 @@ function handlePreToolUse(input) {
   const rawSessionId = process.env.CLAUDE_SESSION_ID || 'default';
   const SESSION_ID = /^[a-zA-Z0-9_-]+$/.test(rawSessionId) ? rawSessionId : 'default';
   const guardFile = path.join(require('os').tmpdir(), `claude_lessons_hook_${SESSION_ID}`);
-  if (fs.existsSync(guardFile)) return;
+  if (fs.existsSync(guardFile)) {
+    try {
+      const mtime = fs.statSync(guardFile).mtimeMs;
+      if (Date.now() - mtime < 3600000) return; // less than 1 hour old
+      fs.unlinkSync(guardFile); // expired, remove
+    } catch {
+      return;
+    }
+  }
 
   let message = '';
 

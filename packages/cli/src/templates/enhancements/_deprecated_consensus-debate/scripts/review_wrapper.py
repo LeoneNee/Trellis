@@ -46,7 +46,7 @@ def run_debate_review(content: str) -> dict:
         "--review-mode", "summarized",
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=25)
     stdout = result.stdout.strip()
 
     # 解析 JSON 输出
@@ -95,7 +95,7 @@ def extract_p0_p1_issues(final_plan: str) -> list:
 
 def main():
     # 读取 stdin（来自 git diff --cached 的管道输入）
-    diff_content = sys.stdin.read() if not sys.stdin.isatty() else ""
+    diff_content = sys.stdin.read(1_000_000) if not sys.stdin.isatty() else ""
 
     parser = argparse.ArgumentParser(description="Claude Code multi-model review wrapper")
     parser.add_argument("--message", type=str, default="", help="Commit message")

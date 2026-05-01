@@ -61,7 +61,7 @@ This ensures downstream commands (write-plan) can locate the design spec.
 
 After the design doc is approved, offer the user:
 
-1. **Plan review** — `/plan-eng-review` or `/consensus-debate` to review the design
+1. **Plan review** — `/plan-eng-review` or `/multi-review` to review the design
 2. **Write implementation plan** — `/trellis:write-plan` to create the execution plan
 
 Follow the user's choice.

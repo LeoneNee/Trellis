@@ -397,13 +397,13 @@ function readEnhancementStatus(cwd: string): string[] {
   } catch {
     // config.yaml not found — no enhancements recorded
   }
-  // consensus-debate is configured as a skill directory, not in config.yaml
+  // multi-review is configured as a skill directory, not in config.yaml
   if (
     fs.existsSync(
-      path.join(cwd, ".claude", "skills", "consensus-debate", "SKILL.md"),
+      path.join(cwd, ".claude", "skills", "multi-review", "skills", "SKILL.md"),
     )
   ) {
-    enhancements.push("consensus-debate");
+    enhancements.push("multi-review");
   }
   return enhancements;
 }
