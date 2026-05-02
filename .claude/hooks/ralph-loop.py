@@ -29,14 +29,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# IMPORTANT: Force stdout to use UTF-8 on Windows
-# This fixes UnicodeEncodeError when outputting non-ASCII characters
-if sys.platform == "win32":
-    import io as _io
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-    elif hasattr(sys.stdout, "detach"):
-        sys.stdout = _io.TextIOWrapper(sys.stdout.detach(), encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+# IMPORTANT: Force stdout to use UTF-8 (fixes UnicodeEncodeError on Windows and other platforms)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+from common_hook import find_repo_root, normalize_task_ref  # type: ignore[import-not-found]
 
 # =============================================================================
 # Configuration
@@ -53,16 +50,6 @@ FILE_CURRENT_TASK = ".current-task"
 TARGET_AGENT = "check"
 
 
-def find_repo_root(start_path: str) -> str | None:
-    """Find git repo root from start_path upwards"""
-    current = Path(start_path).resolve()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return str(current)
-        current = current.parent
-    return None
-
-
 def get_current_task(repo_root: str) -> str | None:
     """Read current task directory path"""
     current_task_file = os.path.join(repo_root, DIR_WORKFLOW, FILE_CURRENT_TASK)
@@ -74,12 +61,7 @@ def get_current_task(repo_root: str) -> str | None:
             content = f.read().strip()
             if not content:
                 return None
-            normalized = content.replace("\\", "/")
-            while normalized.startswith("./"):
-                normalized = normalized[2:]
-            if normalized.startswith("tasks/"):
-                normalized = f".trellis/{normalized}"
-            return normalized
+            return normalize_task_ref(content)
     except Exception:
         return None
 
@@ -139,6 +121,28 @@ def get_verify_commands(repo_root: str) -> list[str]:
         return []
 
 
+# Dangerous patterns to block in verify commands.
+# Trust boundary: verify commands come from user-configured worktree.yaml,
+# so we apply a basic safety check before passing them to shell=True.
+_DANGEROUS_SHELL_PATTERNS = [
+    "rm -rf /",
+    "sudo",
+    "curl|sh",
+    "curl |sh",
+    "curl | sh",
+    "wget|sh",
+    "wget |sh",
+    "wget | sh",
+    "chmod 777",
+]
+
+
+def _is_dangerous_command(cmd: str) -> bool:
+    """Return True if cmd matches a known dangerous pattern."""
+    normalized = cmd.lower().replace("'", "").replace('"', "")
+    return any(p in normalized for p in _DANGEROUS_SHELL_PATTERNS)
+
+
 def run_verify_commands(repo_root: str, commands: list[str]) -> tuple[bool, str]:
     """
     Run verify commands and return (success, message).
@@ -146,6 +150,11 @@ def run_verify_commands(repo_root: str, commands: list[str]) -> tuple[bool, str]
     All commands must pass for success.
     """
     for cmd in commands:
+        # Safety: skip commands matching dangerous patterns before shell=True execution.
+        # Verify commands come from user-configured worktree.yaml (trust boundary).
+        if _is_dangerous_command(cmd):
+            print(f"[ralph-loop] WARNING: skipping dangerous command: {cmd}", file=sys.stderr)
+            continue
         try:
             result = subprocess.run(
                 cmd,

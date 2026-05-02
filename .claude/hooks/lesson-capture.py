@@ -27,19 +27,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+# Force stdout to use UTF-8 (fixes UnicodeEncodeError on Windows and other platforms)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+from common_hook import find_repo_root  # type: ignore[import-not-found]
+
 LESSONS_DIR = ".trellis/lessons"
-
-
-def find_repo_root(start_path: str) -> Optional[str]:
-    current = Path(start_path).resolve()
-    for _ in range(8):
-        if (current / ".git").exists():
-            return str(current)
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    return None
 
 
 def is_error_fix_session(input_data: dict) -> tuple:
@@ -264,21 +258,96 @@ def should_create_lesson(repo_root: str, content: dict) -> bool:
     return False
 
 
-def _has_duplicate_lesson(lessons_dir: Path, date_str: str, files: list[str]) -> bool:
-    """Check if a lesson with the same primary file already exists today."""
-    if not files:
+def _jaccard_similarity(text_a: str, text_b: str) -> float:
+    """计算两个文本的 word-level Jaccard 相似度（空格分词）。"""
+    set_a = set(text_a.lower().split())
+    set_b = set(text_b.lower().split())
+    if not set_a or not set_b:
+        return 0.0
+    intersection = set_a & set_b
+    union = set_a | set_b
+    return len(intersection) / len(union)
+
+
+def _extract_root_cause_from_md(content: str) -> str:
+    """从已有 lesson 文件内容中提取 Root Cause 段落文本。"""
+    pattern = r"##\s+Root\s+Cause\s*\n(.*?)(?=\n##\s|\Z)"
+    m = re.search(pattern, content, re.DOTALL)
+    if not m:
+        return ""
+    text = m.group(1).strip()
+    # 清理代码块和空行
+    text = re.sub(r"```[\s\S]*?```", "", text)
+    text = re.sub(r"\n{2,}", "\n", text).strip()
+    return text
+
+
+def _has_duplicate_lesson(lessons_dir: Path, date_str: str, files: list[str], root_cause: str = "") -> bool:
+    """Check if a lesson with the same primary file or similar root cause already exists today."""
+    if not files and not root_cause:
         return False
-    primary = files[0]
-    escaped = re.escape(primary)
-    pattern = re.compile(rf"^\s+-\s+{escaped}\s*$", re.MULTILINE)
-    for md_file in lessons_dir.glob(f"{date_str}-*.md"):
-        try:
-            text = md_file.read_text(encoding="utf-8")
-            if pattern.search(text):
-                return True
-        except Exception:
-            continue
+
+    # 1. 文件去重：检查同日同文件的 - {primary_file} 模式
+    if files:
+        primary = files[0]
+        escaped = re.escape(primary)
+        pattern = re.compile(rf"^\s+-\s+{escaped}\s*$", re.MULTILINE)
+        for md_file in lessons_dir.glob(f"{date_str}-*.md"):
+            try:
+                text = md_file.read_text(encoding="utf-8")
+                if pattern.search(text):
+                    return True
+            except Exception:
+                continue
+
+    # 2. Root cause 相似度去重：Jaccard > 0.7 视为重复
+    if root_cause:
+        for md_file in lessons_dir.glob(f"{date_str}-*.md"):
+            try:
+                text = md_file.read_text(encoding="utf-8")
+                existing_rc = _extract_root_cause_from_md(text)
+                if existing_rc and _jaccard_similarity(root_cause, existing_rc) > 0.7:
+                    return True
+            except Exception:
+                continue
+
     return False
+
+
+def _is_quality_lesson(root_cause: str, reusable_lesson: str, content_length: int) -> bool:
+    """检查 lesson 的质量是否达到写入门槛。
+
+    返回 True 表示质量合格，False 表示应跳过。
+
+    门槛：
+    - assistant 消息（修复内容）不少于 200 字符
+    - root cause 不为空/过短/占位文本
+    - reusable lesson 不少于 20 字符
+    """
+    # 1. 消息长度检查
+    if content_length < 200:
+        return False
+
+    # 2. Root cause 质量检查
+    rc = root_cause.strip()
+    if not rc or len(rc) < 10:
+        return False
+    # 占位文本模式
+    placeholder_patterns = [
+        "见下方改动摘要",
+        "见下方改动摘要和关键修复点。",
+    ]
+    if rc in placeholder_patterns:
+        return False
+    if rc.startswith("见下方"):
+        return False
+
+    # 3. Reusable lesson 质量检查（如果有内容）
+    rl = reusable_lesson.strip()
+    if rl and len(rl) < 20:
+        return False
+
+    return True
 
 
 def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Optional[str]:
@@ -289,16 +358,25 @@ def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Op
     lessons_dir = Path(repo_root) / LESSONS_DIR
     lessons_dir.mkdir(parents=True, exist_ok=True)
 
-    # Dedup: skip if a lesson with the same files already exists today
+    # 提前提取字段，供去重和质量检查使用
     files = content.get("files", [])
-    if files and _has_duplicate_lesson(lessons_dir, datetime.now().strftime("%Y-%m-%d"), files):
+    root_cause_hint = content.get("root_cause_hint", "")
+    assistant_summary = content.get("assistant_summary", "")
+
+    # Dedup: skip if a lesson with the same files or similar root cause already exists today
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    if _has_duplicate_lesson(lessons_dir, date_str, files, root_cause_hint):
+        return None
+
+    # Quality gate: skip low-quality lessons
+    reusable_lesson_hint = _extract_reusable_lesson(assistant_summary, content.get("tags", ["untagged"]))
+    if not _is_quality_lesson(root_cause_hint, reusable_lesson_hint, len(assistant_summary)):
+        print("跳过低质量 lesson: 消息过短、root cause 不合格或 reusable lesson 不足", file=sys.stderr)
         return None
 
     now = datetime.now()
-    date_str = now.strftime("%Y-%m-%d")
 
     # 从第一个文件路径生成有意义的 slug
-    files = content.get("files", [])
     first_file = files[0] if files else "unknown"
     # 用文件名（去掉扩展名）作为 slug 的一部分
     stem = Path(first_file).stem
@@ -317,12 +395,10 @@ def write_lesson(repo_root: str, is_fix: bool, reason: str, content: dict) -> Op
     if filepath.exists():
         return None  # Too many lessons with this slug today
 
-    # 提取结构化字段
+    # 提取结构化字段（部分已在上方提前提取）
     module = content.get("module", "unspecified")
     tags = content.get("tags", ["untagged"])
     keywords = content.get("keywords", [])
-    root_cause_hint = content.get("root_cause_hint", "")
-    assistant_summary = content.get("assistant_summary", "")
     change_snippet = content.get("change_snippet", "")
 
     # 从 assistant 消息中提取标题（取第一个非空非标题行，截取到第一个句号）

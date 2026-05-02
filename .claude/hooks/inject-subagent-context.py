@@ -31,14 +31,11 @@ import os
 import sys
 from pathlib import Path
 
-# IMPORTANT: Force stdout to use UTF-8 on Windows
-# This fixes UnicodeEncodeError when outputting non-ASCII characters
-if sys.platform == "win32":
-    import io as _io
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-    elif hasattr(sys.stdout, "detach"):
-        sys.stdout = _io.TextIOWrapper(sys.stdout.detach(), encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+# IMPORTANT: Force stdout to use UTF-8 (fixes UnicodeEncodeError on Windows and other platforms)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+from common_hook import find_repo_root, normalize_task_ref  # type: ignore[import-not-found]
 
 # =============================================================================
 # Path Constants (change here to rename directories)
@@ -69,20 +66,6 @@ AGENTS_REQUIRE_TASK = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_DEBUG)
 AGENTS_ALL = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_DEBUG, AGENT_RESEARCH)
 
 
-def find_repo_root(start_path: str) -> str | None:
-    """
-    Find git repo root from start_path upwards
-
-    Returns:
-        Repo root path, or None if not found
-    """
-    current = Path(start_path).resolve()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return str(current)
-        current = current.parent
-    return None
-
 
 def get_current_task(repo_root: str) -> str | None:
     """
@@ -101,12 +84,7 @@ def get_current_task(repo_root: str) -> str | None:
             content = f.read().strip()
             if not content:
                 return None
-            normalized = content.replace("\\", "/")
-            while normalized.startswith("./"):
-                normalized = normalized[2:]
-            if normalized.startswith("tasks/"):
-                normalized = f".trellis/{normalized}"
-            return normalized
+            return normalize_task_ref(content)
     except Exception:
         return None
 

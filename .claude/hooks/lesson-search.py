@@ -18,6 +18,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Force stdout to use UTF-8 (fixes UnicodeEncodeError on Windows and other platforms)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+from common_hook import find_repo_root  # type: ignore[import-not-found]
+
 # --- 停用词 ---
 
 ENGLISH_STOP_WORDS = frozenset({
@@ -75,18 +81,6 @@ def tokenize(text: str) -> set[str]:
                 tokens.add(bigram)
 
     return tokens
-
-
-def find_repo_root(start_path: str) -> Optional[str]:
-    current = Path(start_path).resolve()
-    for _ in range(8):
-        if (current / ".git").exists():
-            return str(current)
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    return None
 
 
 def extract_section(content: str, heading: str) -> str:
@@ -220,8 +214,8 @@ def search_lessons(repo_root: str, user_prompt: str, top_n: int = 3) -> list[dic
             continue
 
         score = compute_relevance(prompt_tokens, content, md_file.stem)
-        # 需要至少有一定的绝对分数，避免中文单字误匹配
-        if score < 3.0:
+        # 阈值从 3.0 降至 2.0：短 query 时单关键词匹配也应该返回结果
+        if score < 2.0:
             continue
 
         result = {

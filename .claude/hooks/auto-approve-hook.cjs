@@ -145,7 +145,11 @@ const SENSITIVE_PATHS = [
   /\/credentials$/,
   /\/secrets?\//,
   /\/\.aws\//,
+  // Home-directory .npmrc (e.g. ~/.npmrc or $HOME/.npmrc) — isSensitivePath expands ~ first
   /\/\.npmrc$/,
+  /\.kube\/config$/,           // Kubernetes credentials
+  /\.docker\/config\.json$/,   // Docker credentials
+  /\/\.netrc$/,                // Network authentication file
 ];
 
 function isSensitivePath(filePath) {

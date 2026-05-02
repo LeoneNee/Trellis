@@ -22,6 +22,31 @@ SKILL_DIR = Path(__file__).parent
 DEFAULT_CONFIG = SKILL_DIR / "config.json"
 MAX_DIFF_SIZE = 1_000_000
 
+# ---------------------------------------------------------------------------
+# Prompt injection defense (basic)
+# Commit messages are external input and may contain malicious content.
+# These helpers sanitise the message before embedding it in the review prompt.
+# ---------------------------------------------------------------------------
+_MAX_MESSAGE_LEN = 500
+
+# Tags that could be used to inject fake instructions into the prompt
+_INJECTION_TAG_RE = re.compile(r"</?(system|assistant|user|im_end|im_start)\b[^>]*>", re.IGNORECASE)
+
+
+def _sanitize_message(message: str) -> str:
+    """Sanitise a commit message before embedding it in the review prompt.
+
+    Basic defense:
+    - Truncate to _MAX_MESSAGE_LEN characters.
+    - Remove injection-style tags (e.g. <system>, </assistant>).
+    - Collapse runs of more than 3 consecutive newlines.
+    """
+    msg = message[:_MAX_MESSAGE_LEN]
+    msg = _INJECTION_TAG_RE.sub("", msg)
+    msg = re.sub(r"\n{4,}", "\n\n\n", msg)
+    return msg
+
+
 REVIEW_PROMPT_TEMPLATE = """\
 Review the following code diff for bugs, security issues, and correctness.
 For each finding, verify it by running the actual code if possible.
@@ -127,7 +152,9 @@ def _try_claude_fallback() -> Optional[ReviewerConfig]:
 
 
 def build_review_prompt(diff_content: str, focus: str = "all", message: str = "") -> str:
-    msg_ctx = f"\nCommit message: {message}\n" if message else ""
+    # Sanitise the commit message (external input) before embedding in prompt
+    safe_msg = _sanitize_message(message) if message else ""
+    msg_ctx = f"\nCommit message: {safe_msg}\n" if safe_msg else ""
     return REVIEW_PROMPT_TEMPLATE.format(diff=diff_content[:MAX_DIFF_SIZE], focus=focus, message_context=msg_ctx)
 
 
